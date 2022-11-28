@@ -1,0 +1,18 @@
+#
+# ** THIS IS AN AUTO-GENERATED FILE **
+#
+
+# Default Kibana configuration for docker target
+server.host: "0.0.0.0"
+server.shutdownTimeout: "5s"
+elasticsearch.hosts: [ "https://localhost:9200" ]
+monitoring.ui.container.elasticsearch.enabled: true
+xpack.encryptedSavedObjects.encryptionKey: "9XeNMpw3EYfxst2XhHE5gj3GRr22k9y59KkYX6DD"
+#xpack.reporting.capture.browser.chromium.disableSandbox: true
+server.publicBaseUrl: https://siemids:5601
+xpack.security.encryptionKey: "9XeNMpw3EYfxst2XhHE5gj3GRr22k9y59KkYX6DD"
+xpack.reporting.encryptionKey: "9XeNMpw3EYfxst2XhHE5gj3GRr22k9y59KkYX6DD"
+xpack.reporting.kibanaServer.hostname: "localhost"
+uiSettings:
+  overrides:
+    "theme:darkMode": true

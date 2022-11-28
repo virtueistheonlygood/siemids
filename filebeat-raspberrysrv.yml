@@ -1,0 +1,70 @@
+hostname: "raspberrysrv"
+agent.hostname: "raspberrysrv"
+name: "raspberrysrv"
+tags: ["raspberrysrv", "suricata", "dns"]
+
+#============================= Filebeat modules ===============================
+
+filebeat.config.modules:
+  # Glob pattern for configuration loading
+  path: ${path.config}/modules.d/*.yml
+
+  # Set to true to enable config reloading
+  reload.enabled: true
+
+  # Period on which files under path should be checked for changes
+  reload.period: 120s
+
+filebeat.modules:
+- module: auditd
+  log:
+    enabled: true
+    var.paths: ["/nas/var/log/audit/audit.log*"]
+- module: system
+  syslog:
+    enabled: true
+    var.paths: ["/nas/var/log/syslog*"]
+  auth:
+    enabled: true
+    var.paths: ["/nas/var/log/auth.log*"]
+
+# ======================= Elasticsearch template setting =======================
+
+#setup.template.enabled: true
+#setup.template.name: "filebeat-%{[agent.version]}"
+#setup.template.pattern: "filebeat-%{[agent.version]}-*"
+
+setup.template.settings:
+  index.number_of_shards: 3
+  index.number_of_replicas: 1
+  #index.codec: best_compression
+  #_source.enabled: false
+
+# ================================= Processors =================================
+processors:
+  - add_host_metadata:
+      when.not.contains.tags: forwarded
+  - add_cloud_metadata: ~
+  - add_docker_metadata: ~
+  - add_kubernetes_metadata: ~
+
+output.elasticsearch:
+  hosts: ["https://localhost:9200"]
+#  index: "logs-%{+yyyy.MM.dd}"
+#  indices:
+#    - index: "suricata-logs-%{+yyyy.MM.dd}"
+#      when.equals:
+#        event.module: "suricata"
+#    - index: "audit-logs-%{+yyyy.MM.dd}"
+#      when.equals:
+#        event.module: "auditd"
+#    - index: "system-logs-%{+yyyy.MM.dd}"
+#      when.equals:
+#        event.module: "system"
+  username: elastic
+  password: Sys04531
+  ssl:
+    certificate_authorities: "/usr/share/elasticsearch/config/certs/ca/ca.crt"
+    certificate: "/usr/share/elasticsearch/config/certs/filebeat/filebeat.crt"
+    key: "/usr/share/elasticsearch/config/certs/filebeat/filebeat.key"
+

@@ -1,0 +1,4 @@
+- module: suricata
+  eve:
+    enabled: true
+    var.paths: ["/nas/ids/suricata/eve.json"]
