@@ -4,7 +4,7 @@ services:
   setup:
     image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION}
     volumes:
-      - certs-8.5.0:/usr/share/elasticsearch/config/certs
+      - certs:/usr/share/elasticsearch/config/certs
     user: "0"
     command: >
       bash -c '
@@ -80,8 +80,8 @@ services:
         condition: service_healthy
     image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION}
     volumes:
-      - certs-8.5.0:/usr/share/elasticsearch/config/certs
-      - es01data-8.5.0:/usr/share/elasticsearch/data
+      - certs:/usr/share/elasticsearch/config/certs
+      - es01data:/usr/share/elasticsearch/data
     ports:
       - ${ES_PORT}:9200
     environment:
@@ -124,8 +124,8 @@ services:
         condition: service_healthy
     image: docker.elastic.co/kibana/kibana:${STACK_VERSION}
     volumes:
-      - certs-8.5.0:/usr/share/kibana/config/certs
-      - kibanadata-8.5.0:/usr/share/kibana/data
+      - certs:/usr/share/kibana/config/certs
+      - kibanadata:/usr/share/kibana/data
       - ./kibana.yml:/usr/share/kibana/config/kibana.yml
     ports:
       - ${KIBANA_PORT}:5601
@@ -164,7 +164,7 @@ services:
     network_mode: host
     volumes:
       - ./filebeat-raspberrynode1.yml:/usr/share/filebeat/filebeat.yml
-      - certs-8.5.0:/usr/share/elasticsearch/config/certs
+      - certs:/usr/share/elasticsearch/config/certs
       - /var/run/docker.sock:/var/run/docker.sock
       # This is needed for filebeat to load container log path as specified in filebeat.yml
       - /var/lib/docker/containers/:/var/lib/docker/containers/:ro
@@ -189,7 +189,7 @@ services:
     volumes:
       - ./filebeat-raspberrysrv.yml:/usr/share/filebeat/filebeat.yml
       - ./suricata.yml:/usr/share/filebeat/modules.d/suricata.yml
-      - certs-8.5.0:/usr/share/elasticsearch/config/certs
+      - certs:/usr/share/elasticsearch/config/certs
       - /var/run/docker.sock:/var/run/docker.sock
       - /var/lib/docker/containers/:/var/lib/docker/containers/:ro
       # This is needed for filebeat to load logs for system and auth modules
@@ -207,9 +207,9 @@ services:
       - ELASTICSEARCH_SSL_CERTIFICATEAUTHORITIES=config/certs/ca/ca.crt
 
 volumes:
-  certs-8.5.0:
+  certs:
     driver: local
-  es01data-8.5.0:
+  es01data:
     driver: local
-  kibanadata-8.5.0:
+  kibanadata:
     driver: local
