@@ -12,7 +12,7 @@
 vars:
   # more specific is better for alert accuracy and performance
   address-groups:
-    HOME_NET: "[192.168.1.0/24,10.10.10.0/24,10.1.1.0/24,172.16.0.0/12]"
+    HOME_NET: "[192.168.100.0/24,10.10.10.0/24,10.1.1.0/24,172.16.0.0/12]"
     #HOME_NET: "[79.152.102.95/32]"
     #HOME_NET: "[10.0.0.0/8]"
     #HOME_NET: "[172.16.0.0/12]"
@@ -977,7 +977,7 @@ app-layer:
          server-config:
 
            #- apache:
-           #    address: [192.168.1.0/24, 127.0.0.0/8, "::1"]
+           #    address: [192.168.100.0/24, 127.0.0.0/8, "::1"]
            #    personality: Apache_2
            #    # Can be specified in kb, mb, gb.  Just a number indicates
            #    # it's in bytes.
@@ -989,7 +989,7 @@ app-layer:
            #- iis7:
            #    address:
            #      - 192.168.0.0/24
-           #      - 192.168.10.0/24
+           #      - 192.168.100..0/24
            #    personality: IIS_7_0
            #    # Can be specified in kb, mb, gb.  Just a number indicates
            #    # it's in bytes.
@@ -1213,13 +1213,13 @@ defrag:
 #
 #    - dmz:
 #        timeout: 30
-#        address: [192.168.1.0/24, 127.0.0.0/8, 1.1.1.0/24, 2.2.2.0/24, "1.1.1.1", "2.2.2.2", "::1"]
+#        address: [192.168.100.0/24, 127.0.0.0/8, 1.1.1.0/24, 2.2.2.0/24, "1.1.1.1", "2.2.2.2", "::1"]
 #
 #    - lan:
 #        timeout: 45
 #        address:
 #          - 192.168.0.0/24
-#          - 192.168.10.0/24
+#          - 192.168.100.0/24
 #          - 172.16.14.0/24
 
 # Flow settings:
