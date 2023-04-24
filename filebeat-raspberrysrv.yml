@@ -48,6 +48,22 @@ processors:
   - add_docker_metadata: ~
   - add_kubernetes_metadata: ~
 
+processors:
+  - add_fields:
+      target: source.geo
+      fields:
+        ip: 
+          - 192.168.100.0
+          - 10.1.1.0
+          - 10.10.10.0
+        location: POINT (-58.5085 -34.5131)
+        country_name: Argentina
+        country_iso_code: AR
+        region_iso_code: AR-C
+        continent_name: South America
+        region_name: Buenos Aires
+        city_name: Olivos
+
 output.elasticsearch:
   hosts: ["https://localhost:9200"]
 #  index: "logs-%{+yyyy.MM.dd}"
