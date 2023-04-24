@@ -50,12 +50,16 @@ processors:
 
 processors:
   - add_fields:
-      target: source.geo
+      when:
+        or:
+          - contains:
+              source.ip: "10.1.1."
+          - contains:
+              source.ip: "10.10.10."
+          - contains:
+              source.ip: "192.168.100."
+      target: 'source.geo'
       fields:
-        ip: 
-          - 192.168.100.0
-          - 10.1.1.0
-          - 10.10.10.0
         location: POINT (-58.5085 -34.5131)
         country_name: Argentina
         country_iso_code: AR
@@ -63,6 +67,147 @@ processors:
         continent_name: South America
         region_name: Buenos Aires
         city_name: Olivos
+
+  - add_fields:
+      when:
+        or:
+          - contains:
+              source.ip: "10.1.1."
+          - contains:
+              source.ip: "10.10.10."
+          - contains:
+              source.ip: "192.168.100."
+      target: 'source.as'
+      fields:
+        organization.name: Local Networks 
+
+  - add_fields:
+      when:
+        or:
+          - contains:
+              source.ip: "10.5.19.17"
+      target: 'source.geo'
+      fields:
+        location: POINT (-3.7037 40.4167)
+        country_name: España
+        country_iso_code: ES
+        region_iso_code: ES-M
+        continent_name: Europe
+        region_name: Madrid
+        city_name: Madrid
+
+  - add_fields:
+      when:
+        or:
+          - contains:
+              source.ip: "10.5.19.17"
+      target: 'source.as'
+      fields:
+        organization.name: OpenVPN PIA
+
+  - add_fields:
+      when:
+        or:
+          - contains:
+              source.ip: "10.10.231.98"
+      target: 'source.geo'
+      fields:
+        location: POINT (14.4719 35.9183)
+        country_name: Malta
+        country_iso_code: MT
+        region_iso_code: MT
+        continent_name: Europe
+        region_name: Is-Swieqi
+        city_name: Il-Madliena
+
+  - add_fields:
+      when:
+        or:
+          - contains:
+              source.ip: "10.10.231.98"
+      target: 'source.as'
+      fields:
+        organization.name: WireGuard PIA
+
+  - add_fields:
+      when:
+        or:
+          - contains:
+              destination.ip: "10.1.1."
+          - contains:
+              destination.ip: "10.10.10."
+          - contains:
+              destination.ip: "192.168.100."
+      target: 'destination.geo'
+      fields:
+        location: POINT (-58.5085 -34.5131)
+        country_name: Argentina
+        country_iso_code: AR
+        region_iso_code: AR-C
+        continent_name: South America
+        region_name: Buenos Aires
+        city_name: Olivos
+
+  - add_fields:
+      when:
+        or:
+          - contains:
+              destination.ip: "10.1.1."
+          - contains:
+              destination.ip: "10.10.10."
+          - contains:
+              destination.ip: "192.168.100."
+      target: 'destination.as'
+      fields:
+        organization.name: Local Networks 
+
+  - add_fields:
+      when:
+        or:
+          - contains:
+              destination.ip: "10.5.19.17"
+      target: 'destination.geo'
+      fields:
+        location: POINT (-3.7037 40.4167)
+        country_name: España
+        country_iso_code: ES
+        region_iso_code: ES-M
+        continent_name: Europe
+        region_name: Madrid
+        city_name: Madrid
+
+  - add_fields:
+      when:
+        or:
+          - contains:
+              destination.ip: "10.5.19.17"
+      target: 'destination.as'
+      fields:
+        organization.name: OpenVPN PIA
+
+  - add_fields:
+      when:
+        or:
+          - contains:
+              destination.ip: "10.10.231.98"
+      target: 'destination.geo'
+      fields:
+        location: POINT (14.4719 35.9183)
+        country_name: Malta
+        country_iso_code: MT
+        region_iso_code: MT
+        continent_name: Europe
+        region_name: Is-Swieqi
+        city_name: Il-Madliena
+
+  - add_fields:
+      when:
+        or:
+          - contains:
+              destination.ip: "10.10.231.98"
+      target: 'destination.as'
+      fields:
+        organization.name: WireGuard PIA
 
 output.elasticsearch:
   hosts: ["https://localhost:9200"]
