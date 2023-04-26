@@ -85,7 +85,7 @@ processors:
       when:
         or:
           - contains:
-              source.ip: "10.5.19.17"
+              source.ip: "10.24.19.26"
       target: 'source.geo'
       fields:
         location: POINT (-3.7037 40.4167)
@@ -100,7 +100,7 @@ processors:
       when:
         or:
           - contains:
-              source.ip: "10.5.19.17"
+              source.ip: "10.24.19.26"
       target: 'source.as'
       fields:
         organization.name: OpenVPN PIA
@@ -165,7 +165,7 @@ processors:
       when:
         or:
           - contains:
-              destination.ip: "10.5.19.17"
+              destination.ip: "10.24.19.26"
       target: 'destination.geo'
       fields:
         location: POINT (-3.7037 40.4167)
@@ -180,7 +180,7 @@ processors:
       when:
         or:
           - contains:
-              destination.ip: "10.5.19.17"
+              destination.ip: "10.24.19.26"
       target: 'destination.as'
       fields:
         organization.name: OpenVPN PIA
@@ -208,6 +208,30 @@ processors:
       target: 'destination.as'
       fields:
         organization.name: WireGuard PIA
+
+  - add_fields:
+      when:
+        or:
+          - contains:
+              destination.ip: "10.0.0.241"
+      target: 'destination.geo'
+      fields:
+        location: POINT (-3.7037 40.4167)
+        country_name: España
+        country_iso_code: ES
+        region_iso_code: ES-M
+        continent_name: Europe
+        region_name: Madrid
+        city_name: Madrid
+
+  - add_fields:
+      when:
+        or:
+          - contains:
+              destination.ip: "10.0.0.241"
+      target: 'destination.as'
+      fields:
+        organization.name: PIA - DNS
 
 output.elasticsearch:
   hosts: ["https://localhost:9200"]
