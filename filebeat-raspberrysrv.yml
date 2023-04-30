@@ -109,22 +109,22 @@ processors:
       when:
         or:
           - contains:
-              source.ip: "10.10.231.98"
+              source.ip: "10.16.164.225"
       target: 'source.geo'
       fields:
-        location: POINT (14.4719 35.9183)
-        country_name: Malta
-        country_iso_code: MT
-        region_iso_code: MT
+        location: POINT (13.4100 52.5245)
+        country_name: Germany
+        country_iso_code: DE
+        region_iso_code: BE
         continent_name: Europe
-        region_name: Is-Swieqi
-        city_name: Il-Madliena
+        region_name: Berlin
+        city_name: Berlin
 
   - add_fields:
       when:
         or:
           - contains:
-              source.ip: "10.10.231.98"
+              source.ip: "10.16.164.225"
       target: 'source.as'
       fields:
         organization.name: WireGuard PIA
@@ -189,22 +189,22 @@ processors:
       when:
         or:
           - contains:
-              destination.ip: "10.10.231.98"
+              destination.ip: "10.16.164.225"
       target: 'destination.geo'
       fields:
-        location: POINT (14.4719 35.9183)
-        country_name: Malta
-        country_iso_code: MT
-        region_iso_code: MT
+        location: POINT (13.4100 52.5245)
+        country_name: Germany
+        country_iso_code: DE
+        region_iso_code: BE
         continent_name: Europe
-        region_name: Is-Swieqi
-        city_name: Il-Madliena
+        region_name: Berlin
+        city_name: Berlin
 
   - add_fields:
       when:
         or:
           - contains:
-              destination.ip: "10.10.231.98"
+              destination.ip: "10.16.164.225"
       target: 'destination.as'
       fields:
         organization.name: WireGuard PIA
