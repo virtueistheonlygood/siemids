@@ -109,22 +109,22 @@ processors:
       when:
         or:
           - contains:
-              source.ip: "10.16.164.225"
+              source.ip: "10.7.182.201"
       target: 'source.geo'
       fields:
-        location: POINT (13.4100 52.5245)
-        country_name: Germany
-        country_iso_code: DE
-        region_iso_code: BE
-        continent_name: Europe
-        region_name: Berlin
-        city_name: Berlin
+        location: POINT (-46.6372 -23.5471)
+        country_name: Brazil
+        country_iso_code: BR
+        region_iso_code: SP
+        continent_name: South America
+        region_name: Sao Paulo
+        city_name: Sao Paulo
 
   - add_fields:
       when:
         or:
           - contains:
-              source.ip: "10.16.164.225"
+              source.ip: "10.7.182.201"
       target: 'source.as'
       fields:
         organization.name: WireGuard PIA
@@ -189,22 +189,22 @@ processors:
       when:
         or:
           - contains:
-              destination.ip: "10.16.164.225"
+              destination.ip: "10.7.182.201"
       target: 'destination.geo'
       fields:
-        location: POINT (13.4100 52.5245)
-        country_name: Germany
-        country_iso_code: DE
-        region_iso_code: BE
-        continent_name: Europe
-        region_name: Berlin
-        city_name: Berlin
+        location: POINT (-46.6372 -23.5471)
+        country_name: Brazil
+        country_iso_code: BR
+        region_iso_code: SP
+        continent_name: South America
+        region_name: Sao Paulo
+        city_name: Sao Paulo
 
   - add_fields:
       when:
         or:
           - contains:
-              destination.ip: "10.16.164.225"
+              destination.ip: "10.7.182.201"
       target: 'destination.as'
       fields:
         organization.name: WireGuard PIA
