@@ -719,6 +719,8 @@ af-packet:
     cluster-id: 96
   - interface: tun0
     cluster-id: 95
+  - interface: tls_decrypted
+    cluster-id: 94
     #threads: auto
     #use-mmap: no
     #tpacket-v3: yes
