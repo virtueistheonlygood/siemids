@@ -1,0 +1,14 @@
+  status: "success"
+  country: "Argentina"
+  countryCode: "AR"
+  region: "B"
+  regionName: "Buenos Aires"
+  city: "Villa Ballester"
+  zip: "1650"
+  lat: -34.5407
+  lon: -58.5625
+  timezone: "America/Argentina/Buenos_Aires"
+  isp: "Techtel LMDS Comunicaciones Interactivas S.A."
+  org: "AMX Argentina S.A"
+  as: "AS11664 Techtel LMDS Comunicaciones Interactivas S.A."
+  query: "170.51.110.5"

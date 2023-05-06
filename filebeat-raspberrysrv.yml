@@ -48,6 +48,10 @@ processors:
   - add_docker_metadata: ~
   - add_kubernetes_metadata: ~
 
+###
+### Local Networks
+###
+
 processors:
   - add_fields:
       when:
@@ -85,54 +89,6 @@ processors:
       when:
         or:
           - contains:
-              source.ip: "10.11.19.21"
-      target: 'source.geo'
-      fields:
-        location: POINT (-3.7037 40.4167)
-        country_name: España
-        country_iso_code: ES
-        region_iso_code: ES-M
-        continent_name: Europe
-        region_name: Madrid
-        city_name: Madrid
-
-  - add_fields:
-      when:
-        or:
-          - contains:
-              source.ip: "10.11.19.21"
-      target: 'source.as'
-      fields:
-        organization.name: OpenVPN PIA
-
-  - add_fields:
-      when:
-        or:
-          - contains:
-              source.ip: "10.7.182.201"
-      target: 'source.geo'
-      fields:
-        location: POINT (-46.6372 -23.5471)
-        country_name: Brazil
-        country_iso_code: BR
-        region_iso_code: SP
-        continent_name: South America
-        region_name: Sao Paulo
-        city_name: Sao Paulo
-
-  - add_fields:
-      when:
-        or:
-          - contains:
-              source.ip: "10.7.182.201"
-      target: 'source.as'
-      fields:
-        organization.name: WireGuard PIA
-
-  - add_fields:
-      when:
-        or:
-          - contains:
               destination.ip: "10.1.1."
           - contains:
               destination.ip: "10.10.10."
@@ -159,7 +115,35 @@ processors:
               destination.ip: "192.168.100."
       target: 'destination.as'
       fields:
-        organization.name: Local Networks 
+        organization.name: Local Networks
+
+###
+### OpenVPN
+###
+
+  - add_fields:
+      when:
+        or:
+          - contains:
+              source.ip: "10.11.19.21"
+      target: 'source.geo'
+      fields:
+        location: POINT (-3.7037 40.4167)
+        country_name: España
+        country_iso_code: ES
+        region_iso_code: ES-M
+        continent_name: Europe
+        region_name: Madrid
+        city_name: Madrid
+
+  - add_fields:
+      when:
+        or:
+          - contains:
+              source.ip: "10.11.19.21"
+      target: 'source.as'
+      fields:
+        organization.name: OpenVPN PIA
 
   - add_fields:
       when:
@@ -185,6 +169,34 @@ processors:
       fields:
         organization.name: OpenVPN PIA
 
+###
+### WireGuard
+###
+
+  - add_fields:
+      when:
+        or:
+          - contains:
+              source.ip: "10.7.182.201"
+      target: 'source.geo'
+      fields:
+        location: POINT (-46.6372 -23.5471)
+        country_name: Brazil
+        country_iso_code: BR
+        region_iso_code: SP
+        continent_name: South America
+        region_name: Sao Paulo
+        city_name: Sao Paulo
+
+  - add_fields:
+      when:
+        or:
+          - contains:
+              source.ip: "10.7.182.201"
+      target: 'source.as'
+      fields:
+        organization.name: WireGuard PIA
+
   - add_fields:
       when:
         or:
@@ -208,6 +220,10 @@ processors:
       target: 'destination.as'
       fields:
         organization.name: WireGuard PIA
+
+###
+### DNS PIA UPSTREAM
+###
 
   - add_fields:
       when:
