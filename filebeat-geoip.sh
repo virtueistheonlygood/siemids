@@ -14,5 +14,5 @@ localnetworks_location=`$call $ipapi/json/$localnetworks | jq -r 'to_entries | m
 ovpnnetwork=`$raspi $call $ovpn $myip`
 ovpnnetwork_location=`$call $ipapi/json/$ovpnnetwork | jq -r 'to_entries | map("  \(.key): \(.value | tojson)") | .[]' > geoip/ovpnnetwork.yml`
 
-wgnetwork=`$raspi $call $wireguard $myip`
-wgnetwork_location=`$call $ipapi/json/$wgnetwork | jq -r 'to_entries | map("  \(.key): \(.value | tojson)") | .[]' > geoip/wgnetwork.yml`
+pianetwork=`$raspi $call $wireguard $myip`
+pianetwork_location=`$call $ipapi/json/$pianetwork | jq -r 'to_entries | map("  \(.key): \(.value | tojson)") | .[]' > geoip/pianetwork.yml`
