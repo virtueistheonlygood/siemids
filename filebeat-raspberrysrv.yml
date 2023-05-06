@@ -53,6 +53,9 @@ processors:
 ###
 
 processors:
+  - include_fields:
+     fields:
+         - geoip/localnetworks.yml
   - add_fields:
       when:
         or:
@@ -64,13 +67,13 @@ processors:
               source.ip: "192.168.100."
       target: 'source.geo'
       fields:
-        location: POINT (-58.5085 -34.5131)
-        country_name: Argentina
-        country_iso_code: AR
-        region_iso_code: AR-C
-        continent_name: South America
-        region_name: Buenos Aires
-        city_name: Olivos
+        location: POINT ("%{[fields][lon]}" "%{[fields][lat]}")
+        country_name: "%{[fields][lcountry]}"
+        country_iso_code: "%{[fields][countryCode]}"
+        region_iso_code: "%{[fields][region]}"
+        continent_name: "%{[fields][timezone]}"
+        region_name: "%{[fields][regionName]}"
+        city_name: "%{[fields][city]}"
 
   - add_fields:
       when:

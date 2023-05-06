@@ -9,10 +9,10 @@ wireguard="--interface pia"
 ipapi=ip-api.com
 
 localnetworks=`$raspi $call $local $myip`
-localnetworks_location=`$call $ipapi/json/$localnetworks | jq -r 'to_entries | map("  \(.key): \(.value | tojson)") | .[]' > geoip/localnetworks.yaml`
+localnetworks_location=`$call $ipapi/json/$localnetworks | jq -r 'to_entries | map("  \(.key): \(.value | tojson)") | .[]' > geoip/localnetworks.yml`
 
 ovpnnetwork=`$raspi $call $ovpn $myip`
-ovpnnetwork_location=`$call $ipapi/json/$ovpnnetwork | jq -r 'to_entries | map("  \(.key): \(.value | tojson)") | .[]' > geoip/ovpnnetwork.yaml`
+ovpnnetwork_location=`$call $ipapi/json/$ovpnnetwork | jq -r 'to_entries | map("  \(.key): \(.value | tojson)") | .[]' > geoip/ovpnnetwork.yml`
 
 wgnetwork=`$raspi $call $wireguard $myip`
-wgnetwork_location=`$call $ipapi/json/$wgnetwork | jq -r 'to_entries | map("  \(.key): \(.value | tojson)") | .[]' > geoip/wgnetwork.yaml`
+wgnetwork_location=`$call $ipapi/json/$wgnetwork | jq -r 'to_entries | map("  \(.key): \(.value | tojson)") | .[]' > geoip/wgnetwork.yml`
