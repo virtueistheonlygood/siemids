@@ -1,14 +1,14 @@
   status: "success"
-  country: "Portugal"
-  countryCode: "PT"
-  region: "11"
-  regionName: "Lisbon"
-  city: "Prior Velho"
-  zip: "2685-310"
-  lat: 38.7863
-  lon: -9.12377
-  timezone: "Europe/Lisbon"
-  isp: "M247 Europe"
-  org: "M247 Ltd Lisbon"
-  as: "AS9009 M247 Europe SRL"
-  query: "146.70.59.39"
+  country: "Spain"
+  countryCode: "ES"
+  region: "VC"
+  regionName: "Valencia"
+  city: "Valencia"
+  zip: "46002"
+  lat: 39.4923
+  lon: -0.4046
+  timezone: "Europe/Madrid"
+  isp: "Packet Exchange Limited"
+  org: "Fiber Grid"
+  as: "AS58065 Packet Exchange Limited"
+  query: "196.245.54.134"
