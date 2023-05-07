@@ -16,3 +16,4 @@ xpack.reporting.kibanaServer.hostname: "localhost"
 uiSettings:
   overrides:
     "theme:darkMode": true
+telemetry.optIn: false

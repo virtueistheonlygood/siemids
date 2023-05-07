@@ -60,7 +60,7 @@ output.elasticsearch:
 #      when.equals:
 #        event.module: "system"
   username: elastic
-  password: Sys04531
+  password: '${ELASTICSEARCH_PASSWORD}'
   ssl:
     certificate_authorities: "/usr/share/elasticsearch/config/certs/ca/ca.crt"
     certificate: "/usr/share/elasticsearch/config/certs/filebeat/filebeat.crt"
