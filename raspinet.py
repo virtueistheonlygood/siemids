@@ -107,4 +107,23 @@ with open('env/pianet.env', 'w') as f:
         else:
             f.write(f'{key.upper()}={value}\n')
 
+import docker
+import os
 
+# Create a Docker client object
+client = docker.from_env()
+
+# Find the container by name
+container = client.containers.get('siemids_filebeat-raspberrysrv_1')
+
+# Stop the container
+container.stop()
+
+# Delete the container
+container.remove()
+
+# Change to the directory containing the docker-compose.yml file
+os.chdir('/home/pi/siemids/')
+
+# Start the services defined in docker-compose.yml
+os.system('docker-compose up -d')

@@ -5,11 +5,12 @@ tags: ["raspberrysrv", "suricata", "dns"]
 
 filebeat.config.inputs:
   enabled: true
-  path: ${path.config}/inputs.d/*.yml
   reload.enabled: true
   reload.period: 10s
   env:
     - localnet.env
+    - ovpnnet.env
+    - pianet.env
 
 #============================= Filebeat modules ===============================
 
@@ -72,13 +73,13 @@ processors:
               source.ip: "192.168.100."
       target: 'source.geo'
       fields:
-        location: POINT (${LOCALNET_GEO_LON} ${LOCALNET_GEO_LAT})
-        country_name: '${LOCALNET_GEO_COUNTRY}'
-        country_iso_code: '${LOCALNET_GEO_COUNTRYCODE}'
-        region_iso_code: '${LOCALNET_GEO_REGION}'
-        continent_name: '${LOCALNET_GEO_TIMEZONE}'
-        region_name: '${LOCALNET_GEO_REGIONNAME}'
-        city_name: '${LOCALNET_GEO_CITY}'
+        location: POINT (${localnet_geo_LON} ${localnet_geo_LAT})
+        country_name: '${localnet_geo_COUNTRY}'
+        country_iso_code: '${localnet_geo_COUNTRYCODE}'
+        region_iso_code: '${localnet_geo_REGION}'
+        continent_name: '${localnet_geo_TIMEZONE}'
+        region_name: '${localnet_geo_REGIONNAME}'
+        city_name: '${localnet_geo_CITY}'
 
   - add_fields:
       when:
@@ -91,7 +92,7 @@ processors:
               source.ip: "192.168.100."
       target: 'source.as'
       fields:
-        organization.name: '${LOCALNET_GEO_ORG}'
+        organization.name: '${localnet_geo_ORG}'
 
   - add_fields:
       when:
@@ -104,13 +105,13 @@ processors:
               destination.ip: "192.168.100."
       target: 'destination.geo'
       fields:
-        location: POINT (-58.5085 -34.5131)
-        country_name: Argentina
-        country_iso_code: AR
-        region_iso_code: AR-C
-        continent_name: South America
-        region_name: Buenos Aires
-        city_name: Olivos
+        location: POINT (${localnet_geo_LON} ${localnet_geo_LAT})
+        country_name: '${localnet_geo_COUNTRY}'
+        country_iso_code: '${localnet_geo_COUNTRYCODE}'
+        region_iso_code: '${localnet_geo_REGION}'
+        continent_name: '${localnet_geo_TIMEZONE}'
+        region_name: '${localnet_geo_REGIONNAME}'
+        city_name: '${localnet_geo_CITY}'
 
   - add_fields:
       when:
@@ -123,7 +124,7 @@ processors:
               destination.ip: "192.168.100."
       target: 'destination.as'
       fields:
-        organization.name: Local Networks
+        organization.name: '${localnet_geo_ORG}'
 
 ###
 ### OpenVPN
@@ -133,49 +134,49 @@ processors:
       when:
         or:
           - contains:
-              source.ip: "10.11.19.21"
+              source.ip: '${ovpnnet_iface_TUN0}'
       target: 'source.geo'
       fields:
-        location: POINT (-3.7037 40.4167)
-        country_name: España
-        country_iso_code: ES
-        region_iso_code: ES-M
-        continent_name: Europe
-        region_name: Madrid
-        city_name: Madrid
+        location: POINT (${ovpnnet_geo_LON} ${ovpnnet_geo_LAT})
+        country_name: '${ovpnnet_geo_COUNTRY}'
+        country_iso_code: '${ovpnnet_geo_COUNTRYCODE}'
+        region_iso_code: '${ovpnnet_geo_REGION}'
+        continent_name: '${ovpnnet_geo_TIMEZONE}'
+        region_name: '${ovpnnet_geo_REGIONNAME}'
+        city_name: '${ovpnnet_geo_CITY}'
 
   - add_fields:
       when:
         or:
           - contains:
-              source.ip: "10.11.19.21"
+              source.ip: '${ovpnnet_iface_TUN0}'
       target: 'source.as'
       fields:
-        organization.name: OpenVPN PIA
+        organization.name: '${ovpnnet_geo_ORG}'
 
   - add_fields:
       when:
         or:
           - contains:
-              destination.ip: "10.11.19.21"
+              destination.ip: '${ovpnnet_iface_TUN0}'
       target: 'destination.geo'
       fields:
-        location: POINT (-3.7037 40.4167)
-        country_name: España
-        country_iso_code: ES
-        region_iso_code: ES-M
-        continent_name: Europe
-        region_name: Madrid
-        city_name: Madrid
+        location: POINT (${ovpnnet_geo_LON} ${ovpnnet_geo_LAT})
+        country_name: '${ovpnnet_geo_COUNTRY}'
+        country_iso_code: '${ovpnnet_geo_COUNTRYCODE}'
+        region_iso_code: '${ovpnnet_geo_REGION}'
+        continent_name: '${ovpnnet_geo_TIMEZONE}'
+        region_name: '${ovpnnet_geo_REGIONNAME}'
+        city_name: '${ovpnnet_geo_CITY}'
 
   - add_fields:
       when:
         or:
           - contains:
-              destination.ip: "10.11.19.21"
+              destination.ip: '${ovpnnet_iface_TUN0}'
       target: 'destination.as'
       fields:
-        organization.name: OpenVPN PIA
+        organization.name: '${ovpnnet_geo_ORG}'
 
 ###
 ### WireGuard
@@ -185,49 +186,49 @@ processors:
       when:
         or:
           - contains:
-              source.ip: "10.7.182.201"
+              source.ip: '${pianet_iface_PIA}'
       target: 'source.geo'
       fields:
-        location: POINT (-46.6372 -23.5471)
-        country_name: Brazil
-        country_iso_code: BR
-        region_iso_code: SP
-        continent_name: South America
-        region_name: Sao Paulo
-        city_name: Sao Paulo
+        location: POINT (${pianet_geo_LON} ${pianet_geo_LAT})
+        country_name: '${pianet_geo_COUNTRY}'
+        country_iso_code: '${pianet_geo_COUNTRYCODE}'
+        region_iso_code: '${pianet_geo_REGION}'
+        continent_name: '${pianet_geo_TIMEZONE}'
+        region_name: '${pianet_geo_REGIONNAME}'
+        city_name: '${pianet_geo_CITY}'
 
   - add_fields:
       when:
         or:
           - contains:
-              source.ip: "10.7.182.201"
+              source.ip: '${pianet_iface_PIA}'
       target: 'source.as'
       fields:
-        organization.name: WireGuard PIA
+        organization.name: '${pianet_geo_ORG}'
 
   - add_fields:
       when:
         or:
           - contains:
-              destination.ip: "10.7.182.201"
+              destination.ip: '${pianet_iface_PIA}'
       target: 'destination.geo'
       fields:
-        location: POINT (-46.6372 -23.5471)
-        country_name: Brazil
-        country_iso_code: BR
-        region_iso_code: SP
-        continent_name: South America
-        region_name: Sao Paulo
-        city_name: Sao Paulo
+        location: POINT (${pianet_geo_LON} ${pianet_geo_LAT})
+        country_name: '${pianet_geo_COUNTRY}'
+        country_iso_code: '${pianet_geo_COUNTRYCODE}'
+        region_iso_code: '${pianet_geo_REGION}'
+        continent_name: '${pianet_geo_TIMEZONE}'
+        region_name: '${pianet_geo_REGIONNAME}'
+        city_name: '${pianet_geo_CITY}'
 
   - add_fields:
       when:
         or:
           - contains:
-              destination.ip: "10.7.182.201"
+              destination.ip: '${pianet_iface_PIA}'
       target: 'destination.as'
       fields:
-        organization.name: WireGuard PIA
+        organization.name: '${pianet_geo_ORG}'
 
 ###
 ### DNS PIA UPSTREAM
@@ -240,13 +241,13 @@ processors:
               destination.ip: "10.0.0.241"
       target: 'destination.geo'
       fields:
-        location: POINT (-3.7037 40.4167)
-        country_name: España
-        country_iso_code: ES
-        region_iso_code: ES-M
-        continent_name: Europe
-        region_name: Madrid
-        city_name: Madrid
+        location: POINT (${ovpnnet_geo_LON} ${ovpnnet_geo_LAT})
+        country_name: '${ovpnnet_geo_COUNTRY}'
+        country_iso_code: '${ovpnnet_geo_COUNTRYCODE}'
+        region_iso_code: '${ovpnnet_geo_REGION}'
+        continent_name: '${ovpnnet_geo_TIMEZONE}'
+        region_name: '${ovpnnet_geo_REGIONNAME}'
+        city_name: '${ovpnnet_geo_CITY}'
 
   - add_fields:
       when:
@@ -255,7 +256,7 @@ processors:
               destination.ip: "10.0.0.241"
       target: 'destination.as'
       fields:
-        organization.name: PIA - DNS
+        organization.name: '${ovpnnet_geo_ORG}'
 
 output.elasticsearch:
   hosts: ["https://localhost:9200"]
