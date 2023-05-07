@@ -189,6 +189,7 @@ services:
     volumes:
       - ./filebeat-raspberrysrv.yml:/usr/share/filebeat/filebeat.yml
       - ./suricata.yml:/usr/share/filebeat/modules.d/suricata.yml
+      - ./env/localnet.env:/usr/share/filebeat/localnet.env
       - certs:/usr/share/elasticsearch/config/certs
       - /var/run/docker.sock:/var/run/docker.sock
       - /var/lib/docker/containers/:/var/lib/docker/containers/:ro
@@ -200,6 +201,8 @@ services:
       - type: bind
         source: /nas
         target: /nas
+    env_file:
+      - ./env/localnet.env
     environment:
       - ELASTICSEARCH_HOSTS=https://localhost:9200
       - ELASTICSEARCH_USERNAME=elastic

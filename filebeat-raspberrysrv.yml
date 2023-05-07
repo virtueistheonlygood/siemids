@@ -3,6 +3,14 @@ agent.hostname: "raspberrysrv"
 name: "raspberrysrv"
 tags: ["raspberrysrv", "suricata", "dns"]
 
+filebeat.config.inputs:
+  enabled: true
+  path: ${path.config}/inputs.d/*.yml
+  reload.enabled: true
+  reload.period: 10s
+  env:
+    - localnet.env
+
 #============================= Filebeat modules ===============================
 
 filebeat.config.modules:
@@ -47,12 +55,6 @@ processors:
   - add_cloud_metadata: ~
   - add_docker_metadata: ~
   - add_kubernetes_metadata: ~
-  - add_fields:
-      target: ''
-      fields:
-        environment: ${ENVIRONMENT}
-filebeat.env:
-  - ./env/localnet.env
 
 ###
 ### Local Networks
@@ -70,13 +72,13 @@ processors:
               source.ip: "192.168.100."
       target: 'source.geo'
       fields:
-        location: POINT ()
-        country_name: 
-        country_iso_code: AR
-        region_iso_code: AR-C
-        continent_name: South America
-        region_name: Buenos Aires
-        city_name: {$localnet_geo_CITY}
+        location: POINT (${LOCALNET_GEO_LON} ${LOCALNET_GEO_LAT})
+        country_name: '${LOCALNET_GEO_COUNTRY}'
+        country_iso_code: '${LOCALNET_GEO_COUNTRYCODE}'
+        region_iso_code: '${LOCALNET_GEO_REGION}'
+        continent_name: '${LOCALNET_GEO_TIMEZONE}'
+        region_name: '${LOCALNET_GEO_REGIONNAME}'
+        city_name: '${LOCALNET_GEO_CITY}'
 
   - add_fields:
       when:
@@ -89,7 +91,7 @@ processors:
               source.ip: "192.168.100."
       target: 'source.as'
       fields:
-        organization.name: Local Networks 
+        organization.name: '${LOCALNET_GEO_ORG}'
 
   - add_fields:
       when:
