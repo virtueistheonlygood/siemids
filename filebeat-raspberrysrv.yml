@@ -52,7 +52,28 @@ processors:
 ### Local Networks
 ###
 
+filebeat.inputs:
+- type: file
+  paths:
+    - localnet.json
+
 processors:
+processors:
+  - add_fields:
+      target: ""
+      fields:
+        location: '{{ readFile "location.json" }}'
+  - decode_json_fields:
+      fields: ["country", "countryCode", "region", "regionName", "city", "zip", "lat", "lon", "timezone", "isp", "org", "as"]
+      target: ""
+      overwrite_keys: true
+      max_depth: 1
+      add_error_key: true
+      error_key: json_error
+      ignore_missing: true
+      process_array: false
+      on_failure:
+        - drop_event
   - add_fields:
       when:
         or:
@@ -64,13 +85,13 @@ processors:
               source.ip: "192.168.100."
       target: 'source.geo'
       fields:
-        location: POINT (-58.5085 -34.5131)
-        country_name: Argentina
+        location: POINT (${.lat},${.lon})
+        country_name: ${country}
         country_iso_code: AR
         region_iso_code: AR-C
         continent_name: South America
         region_name: Buenos Aires
-        city_name: Olivos
+        city_name: ${city}
 
   - add_fields:
       when:

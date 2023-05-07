@@ -188,6 +188,7 @@ services:
     network_mode: host
     volumes:
       - ./filebeat-raspberrysrv.yml:/usr/share/filebeat/filebeat.yml
+      - ./localnet.json:/usr/share/filebeat/localnet.json
       - ./suricata.yml:/usr/share/filebeat/modules.d/suricata.yml
       - certs:/usr/share/elasticsearch/config/certs
       - /var/run/docker.sock:/var/run/docker.sock
