@@ -47,33 +47,18 @@ processors:
   - add_cloud_metadata: ~
   - add_docker_metadata: ~
   - add_kubernetes_metadata: ~
+  - add_fields:
+      target: ''
+      fields:
+        environment: ${ENVIRONMENT}
+filebeat.env:
+  - ./env/localnet.env
 
 ###
 ### Local Networks
 ###
 
-filebeat.inputs:
-- type: file
-  paths:
-    - localnet.json
-
 processors:
-processors:
-  - add_fields:
-      target: ""
-      fields:
-        location: '{{ readFile "location.json" }}'
-  - decode_json_fields:
-      fields: ["country", "countryCode", "region", "regionName", "city", "zip", "lat", "lon", "timezone", "isp", "org", "as"]
-      target: ""
-      overwrite_keys: true
-      max_depth: 1
-      add_error_key: true
-      error_key: json_error
-      ignore_missing: true
-      process_array: false
-      on_failure:
-        - drop_event
   - add_fields:
       when:
         or:
@@ -85,13 +70,13 @@ processors:
               source.ip: "192.168.100."
       target: 'source.geo'
       fields:
-        location: POINT (${.lat},${.lon})
-        country_name: ${country}
+        location: POINT ()
+        country_name: 
         country_iso_code: AR
         region_iso_code: AR-C
         continent_name: South America
         region_name: Buenos Aires
-        city_name: ${city}
+        city_name: {$localnet_geo_CITY}
 
   - add_fields:
       when:
