@@ -1,0 +1,19 @@
+{{- if .Values.podSecurityPolicy.create }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ template "elastalert.fullname" . }}
+  labels: {{- include "common.labels.standard" . | nindent 4 }}
+  {{- if .Values.commonLabels }}
+  {{- include "common.tplvalues.render" ( dict "value" .Values.commonLabels "context" $ ) | nindent 4 }}
+  {{- end }}
+rules:
+  - apiGroups:
+    - policy
+    resources:
+    - podsecuritypolicies
+    resourceNames:
+    - {{ template "elastalert.fullname" . }}
+    verbs:
+    - use
+{{- end -}}

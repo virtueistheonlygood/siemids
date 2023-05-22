@@ -1,0 +1,28 @@
+name: upload_chart
+
+on:
+  push:
+    tags:
+      - 2.*
+
+jobs:
+  publish:
+    environment: Main
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Install Helm
+        uses: azure/setup-helm@v1
+        with:
+          version: v3.4.0
+
+      - name: Run chart-releaser
+        uses: J12934/helm-gh-pages-action@master
+        with:
+          charts-folder: chart
+          access-token: "${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}"
+          deploy-branch: gh-pages

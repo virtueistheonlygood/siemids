@@ -1,0 +1,166 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "elastalert.fullname" . }}
+  labels:
+    {{- if .Values.commonLabels }}
+    {{- include "common.tplvalues.render" ( dict "value" .Values.commonLabels "context" $ ) | nindent 4 }}
+    {{- end }} 
+    app: {{ template "elastalert.name" . }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "common.labels.matchLabels" . | nindent 6 }}
+  replicas: {{ .Values.replicaCount }}
+  revisionHistoryLimit: {{ .Values.revisionHistoryLimit }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/config.yaml") . | sha256sum }}
+        checksum/rules: {{ include (print $.Template.BasePath "/rules.yaml") . | sha256sum }}
+{{- if .Values.metrics.enabled  }}
+{{ toYaml .Values.metrics.prometheusScrapeAnnotations | indent 8 }}
+        prometheus.io/port: {{ .Values.metrics.prometheusPort | quote}}
+{{- end }}
+{{- if .Values.podAnnotations }}
+{{ toYaml .Values.podAnnotations | indent 8 }}
+{{- end }}
+      labels: {{- include "common.labels.standard" . | nindent 8 }}
+        app.kubernetes.io/component: {{ .Values.appKubernetesIoComponent }}
+        {{- if .Values.commonLabels }}
+        {{- include "common.tplvalues.render" ( dict "value" .Values.commonLabels "context" $ ) | nindent 4 }}
+        {{- end }}
+    spec:
+{{- if .Values.image.pullSecret }}
+      imagePullSecrets:
+      - name: {{ .Values.image.pullSecret }}
+{{- end }}
+      serviceAccountName: {{ include "elastalert.serviceAccountName" . }}
+{{- if .Values.podSecurityContext }}
+      securityContext:
+{{ toYaml .Values.podSecurityContext | indent 8 }}
+{{- end }}
+{{- if .Values.extraInitContainers }}
+      initContainers:
+{{ .Values.extraInitContainers | toYaml | indent 6}}
+{{- end }}
+      containers:
+{{- if .Values.extraContainers }}
+{{ .Values.extraContainers | toYaml | indent 6}}
+{{- end }}
+      - name: elastalert
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+{{- if .Values.metrics.enabled }}
+        ports:
+        - containerPort: {{ .Values.metrics.prometheusPort }}
+          protocol: TCP
+          name: {{ .Values.metrics.prometheusPortName }}
+{{- end }}
+{{- if .Values.securityContext }}
+        securityContext:
+{{ toYaml .Values.securityContext | indent 10 }}
+{{- end }}
+{{- if .Values.command }}
+        command:
+{{ toYaml .Values.command | indent 10 }}
+{{- end }}
+
+{{- if or .Values.args .Values.metrics.enabled }}
+        args:
+  {{- if .Values.args }}
+{{ toYaml .Values.args | indent 10 }}
+  {{- end }}
+  {{- if .Values.metrics.enabled }}
+  {{- $enableportlist := list "--prometheus_port" (.Values.metrics.prometheusPort | toString) }}
+{{ toYaml $enableportlist | indent 10 }}
+  {{- end }}
+{{- end }}
+
+        volumeMounts:
+          - name: config
+            mountPath: '/opt/elastalert/config.yaml'
+            subPath: config.yaml
+          - name: {{ .Values.rulesVolumeName }}
+            mountPath: {{ .Values.rulesFolder }}
+{{- if .Values.elasticsearch.certsVolumeMounts }}
+{{ toYaml .Values.elasticsearch.certsVolumeMounts | indent 10 }}
+{{- end }}
+{{- if .Values.extraVolumeMounts }}
+{{ toYaml .Values.extraVolumeMounts | indent 10 }}
+{{- end }}
+        resources:
+{{ toYaml .Values.resources | indent 12 }}
+        env:
+{{- if .Values.elasticsearch.credentialsSecret }}
+{{- if .Values.elasticsearch.credentialsSecretUsernameKey }}
+          - name: ES_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.elasticsearch.credentialsSecret }}
+                key: {{ .Values.elasticsearch.credentialsSecretUsernameKey }}
+{{- end }}
+{{- if .Values.elasticsearch.credentialsSecretPasswordKey }}
+          - name: ES_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.elasticsearch.credentialsSecret }}
+                key: {{ .Values.elasticsearch.credentialsSecretPasswordKey }}
+{{- end }}
+{{- end }}
+{{- if .Values.optEnv }}
+{{ .Values.optEnv | toYaml | indent 10}}
+{{- end }}
+
+      restartPolicy: Always
+{{- if .Values.tolerations }}
+      tolerations:
+{{ toYaml .Values.tolerations | indent 8 }}
+{{- end }}
+{{- if .Values.nodeSelector }}
+      nodeSelector:
+{{ toYaml .Values.nodeSelector | indent 8 }}
+{{- end }}
+{{- if .Values.affinity }}
+      affinity:
+{{ toYaml .Values.affinity | indent 8 }}
+{{- end }}
+      volumes:
+        - name: rules
+{{- if .Values.secretRulesName }}
+          secret:
+            secretName: {{ .Values.secretRulesName }}
+            items:
+{{- range $key := .Values.secretRulesList }}
+            - key: {{ $key }}
+              path: {{ $key}}.yaml
+{{- end }}
+{{- else }}
+          configMap:
+            name: {{ template "elastalert.fullname" . }}-rules
+            items:
+{{- range $key, $value := .Values.rules }}
+            - key: {{ $key }}
+              path: {{ $key}}.yaml
+{{- end }}
+{{- end }}
+        - name: config
+{{- if .Values.secretConfigName }}
+          secret:
+            secretName: {{ .Values.secretConfigName }}
+{{- else }}
+          configMap:
+            name: {{ template "elastalert.fullname" . }}-config
+{{- end }}
+            items:
+            - key: elastalert_config
+              path: config.yaml
+{{- if .Values.elasticsearch.certsVolumes }}
+{{ toYaml .Values.elasticsearch.certsVolumes | indent 8 }}
+{{- end }}
+{{- if .Values.extraVolumes }}
+{{ toYaml .Values.extraVolumes | indent 8 }}
+{{- end }}
