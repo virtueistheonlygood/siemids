@@ -1,0 +1,3 @@
+[submodule "elastalert2"]
+	path = elastalert2
+	url = https://github.com/jertel/elastalert2.git
