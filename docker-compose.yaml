@@ -67,7 +67,6 @@ services:
         echo "Setting kibana_system password";
         until curl -s -X POST --cacert config/certs/ca/ca.crt -u "elastic:${ELASTIC_PASSWORD}" -H "Content-Type: application/json" https://es01:9200/_security/user/kibana_system/_password -d "{\"password\":\"${KIBANA_PASSWORD}\"}" | grep -q "^{}"; do sleep 10; done;
         echo "All done!";
-        docker cp siemids_es01_1:/usr/share/elasticsearch/config/certs/ elastalert2/.
       '
     healthcheck:
       test: ["CMD-SHELL", "[ -f config/certs/es01/es01.crt ]"]
@@ -127,7 +126,7 @@ services:
     volumes:
       - certs:/usr/share/kibana/config/certs
       - kibanadata:/usr/share/kibana/data
-      - ./kibana.yml:/usr/share/kibana/config/kibana.yml
+      - ./resources/kibana.yml:/usr/share/kibana/config/kibana.yml
     ports:
       - ${KIBANA_PORT}:5601
     environment:
@@ -164,7 +163,7 @@ services:
     user: root
     network_mode: host
     volumes:
-      - ./filebeat-raspberrynode1.yml:/usr/share/filebeat/filebeat.yml
+      - ./resources/filebeat-raspberrynode1.yml:/usr/share/filebeat/filebeat.yml
       - certs:/usr/share/elasticsearch/config/certs
       - /var/run/docker.sock:/var/run/docker.sock
       # This is needed for filebeat to load container log path as specified in filebeat.yml
@@ -188,8 +187,8 @@ services:
     user: root
     network_mode: host
     volumes:
-      - ./filebeat-raspberrysrv.yml:/usr/share/filebeat/filebeat.yml
-      - ./suricata.yml:/usr/share/filebeat/modules.d/suricata.yml
+      - ./resources/filebeat-raspberrysrv.yml:/usr/share/filebeat/filebeat.yml
+      - ./resources/suricata.yml:/usr/share/filebeat/modules.d/suricata.yml
       - ./env/localnet.env:/usr/share/filebeat/localnet.env
       - ./env/ovpnnet.env:/usr/share/filebeat/ovpnnet.env
       - ./env/pianet.env:/usr/share/filebeat/pianet.env
@@ -214,13 +213,11 @@ services:
       - ELASTICSEARCH_PASSWORD=${ELASTIC_PASSWORD}
       - ELASTICSEARCH_SSL_CERTIFICATEAUTHORITIES=config/certs/ca/ca.crt
 
+services:
   elastalert2:
-    depends_on:
-      es01:
-        condition: service_healthy
     network_mode: host
     build:
-      context: elastalert2/.
+      context: elastalert/.
       dockerfile: Dockerfile
     environment:
       - TZ=UTC

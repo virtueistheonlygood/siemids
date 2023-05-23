@@ -1,7 +1,7 @@
 FROM python:3-slim-buster as builder
 
 LABEL description="ElastAlert 2 Official Image"
-LABEL maintainer="Jason Ertel"
+LABEL maintainer="Mariano"
 
 COPY . /tmp/elastalert
 
