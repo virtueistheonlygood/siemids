@@ -213,6 +213,15 @@ services:
       - ELASTICSEARCH_PASSWORD=${ELASTIC_PASSWORD}
       - ELASTICSEARCH_SSL_CERTIFICATEAUTHORITIES=config/certs/ca/ca.crt
 
+services:
+  elastalert2:
+    network_mode: host
+    build:
+      context: elastalert/.
+      dockerfile: Dockerfile
+    environment:
+      - TZ=UTC
+
 volumes:
   certs:
     driver: local
