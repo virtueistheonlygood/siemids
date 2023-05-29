@@ -213,13 +213,13 @@ services:
       - ELASTICSEARCH_PASSWORD=${ELASTIC_PASSWORD}
       - ELASTICSEARCH_SSL_CERTIFICATEAUTHORITIES=config/certs/ca/ca.crt
 
-  elastalert2:
+  elastalert2-api:
     depends_on:
       kibana:
         condition: service_healthy
     network_mode: host
     build:
-      context: elastalert/.
+      context: elastalert2-server/.
       dockerfile: Dockerfile
     environment:
       - TZ=UTC
