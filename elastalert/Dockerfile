@@ -45,6 +45,6 @@ WORKDIR /opt/elastalert
 COPY config.yaml /opt/elastalert/config.yaml
 # Copy certificate files to the image
 #RUN mkdir -p /opt/elastalert/certs
-COPY --chown=${USERNAME}:${USERNAME} certs /opt/elastalert/
+#COPY --chown=${USERNAME}:${USERNAME} certs /opt/elastalert/
 
 ENTRYPOINT ["/opt/elastalert/run.sh"]

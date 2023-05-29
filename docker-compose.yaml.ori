@@ -4,7 +4,7 @@ services:
   setup:
     image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION}
     volumes:
-      - $PWD/certs:/usr/share/elasticsearch/config/certs
+      - certs:/usr/share/elasticsearch/config/certs
     user: "0"
     command: >
       bash -c '
@@ -80,7 +80,7 @@ services:
         condition: service_healthy
     image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION}
     volumes:
-      - $PWD/certs:/usr/share/elasticsearch/config/certs
+      - certs:/usr/share/elasticsearch/config/certs
       - es01data:/usr/share/elasticsearch/data
     ports:
       - ${ES_PORT}:9200
@@ -124,9 +124,9 @@ services:
         condition: service_healthy
     image: docker.elastic.co/kibana/kibana:${STACK_VERSION}
     volumes:
-      - $PWD/certs:/usr/share/kibana/config/certs
+      - certs:/usr/share/kibana/config/certs
       - kibanadata:/usr/share/kibana/data
-      - $PWD/resources/kibana.yml:/usr/share/kibana/config/kibana.yml
+      - ./resources/kibana.yml:/usr/share/kibana/config/kibana.yml
     ports:
       - ${KIBANA_PORT}:5601
     environment:
@@ -163,8 +163,8 @@ services:
     user: root
     network_mode: host
     volumes:
-      - $PWD/resources/filebeat-raspberrynode1.yml:/usr/share/filebeat/filebeat.yml
-      - $PWD/certs:/usr/share/elasticsearch/config/certs
+      - ./resources/filebeat-raspberrynode1.yml:/usr/share/filebeat/filebeat.yml
+      - certs:/usr/share/elasticsearch/config/certs
       - /var/run/docker.sock:/var/run/docker.sock
       # This is needed for filebeat to load container log path as specified in filebeat.yml
       - /var/lib/docker/containers/:/var/lib/docker/containers/:ro
@@ -174,7 +174,7 @@ services:
       # on ubuntu first (sudo apt-get install -y auditd audispd-plugins)
       - /var/log/audit/:/var/log/audit/:ro
     environment:
-      - ELASTICSEARCH_HOSTS=https://es01:9200
+      - ELASTICSEARCH_HOSTS=https://localhost:9200
       - ELASTICSEARCH_USERNAME=elastic
       - ELASTICSEARCH_PASSWORD=${ELASTIC_PASSWORD}
       - ELASTICSEARCH_SSL_CERTIFICATEAUTHORITIES=config/certs/ca/ca.crt
@@ -187,12 +187,12 @@ services:
     user: root
     network_mode: host
     volumes:
-      - $PWD/resources/filebeat-raspberrysrv.yml:/usr/share/filebeat/filebeat.yml
-      - $PWD/resources/suricata.yml:/usr/share/filebeat/modules.d/suricata.yml
-      - $PWD/env/localnet.env:/usr/share/filebeat/localnet.env
-      - $PWD/env/ovpnnet.env:/usr/share/filebeat/ovpnnet.env
-      - $PWD/env/pianet.env:/usr/share/filebeat/pianet.env
-      - $PWD/certs:/usr/share/elasticsearch/config/certs
+      - ./resources/filebeat-raspberrysrv.yml:/usr/share/filebeat/filebeat.yml
+      - ./resources/suricata.yml:/usr/share/filebeat/modules.d/suricata.yml
+      - ./env/localnet.env:/usr/share/filebeat/localnet.env
+      - ./env/ovpnnet.env:/usr/share/filebeat/ovpnnet.env
+      - ./env/pianet.env:/usr/share/filebeat/pianet.env
+      - certs:/usr/share/elasticsearch/config/certs
       - /var/run/docker.sock:/var/run/docker.sock
       - /var/lib/docker/containers/:/var/lib/docker/containers/:ro
       # This is needed for filebeat to load logs for system and auth modules
@@ -204,27 +204,18 @@ services:
         source: /nas
         target: /nas
     env_file:
-      - $PWD/env/localnet.env
-      - $PWD/env/ovpnnet.env
-      - $PWD/env/pianet.env
+      - ./env/localnet.env
+      - ./env/ovpnnet.env
+      - ./env/pianet.env
     environment:
-      - ELASTICSEARCH_HOSTS=https://es01:9200
+      - ELASTICSEARCH_HOSTS=https://localhost:9200
       - ELASTICSEARCH_USERNAME=elastic
       - ELASTICSEARCH_PASSWORD=${ELASTIC_PASSWORD}
       - ELASTICSEARCH_SSL_CERTIFICATEAUTHORITIES=config/certs/ca/ca.crt
 
-  elastalert2:
-    depends_on:
-      kibana:
-        condition: service_healthy
-    network_mode: host
-    build:
-      context: elastalert/.
-      dockerfile: Dockerfile
-    environment:
-      - TZ=UTC
-
 volumes:
+  certs:
+    driver: local
   es01data:
     driver: local
   kibanadata:

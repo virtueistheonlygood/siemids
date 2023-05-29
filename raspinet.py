@@ -10,13 +10,13 @@ ovpnnet_if = "--interface tun0"
 pianet_if = "--interface pia"
 ipapi = "http://ip-api.com/json/"
 
-# Get local IP and geo ifacermation
+# Get local IP and geo information
 localnet = subprocess.check_output(f"{raspi} {call} {localnet_if} {myip}", shell=True, text=True).strip()
 localnet_geo = requests.get(f"{ipapi}{localnet}").json()
 with open("geoip/localnet.json", "w") as f:
     json.dump(localnet_geo, f)
 
-# Get network ifacermation for all local interfaces
+# Get network information for all local interfaces
 localnet_iface = {}
 for interface in ["eth0", "wlan0", "wlan1"]:
     output = subprocess.check_output(f"{raspi} ip a show dev {interface}", shell=True, text=True)
@@ -31,13 +31,13 @@ with open("geoip/localnet.json", "w") as f:
     }
     json.dump(output, f)
 
-# Get wireguard-pia public IP and geo ifacermation
+# Get wireguard-pia public IP and geo information
 pianet = subprocess.check_output(f"{raspi} {call} {pianet_if} {myip}", shell=True, text=True).strip()
 pianet_geo = requests.get(f"{ipapi}{pianet}").json()
 with open("geoip/pianet.json", "w") as f:
     json.dump(pianet_geo, f)
 
-# Get network ifacermation for pia local interface
+# Get network information for pia local interface
 pianet_iface = {}
 for interface in ["pia"]:
     output = subprocess.check_output(f"{raspi} ip a show dev {interface}", shell=True, text=True)
@@ -52,13 +52,13 @@ with open("geoip/pianet.json", "w") as f:
     }
     json.dump(output, f)
 
-# Get openvpn-pia public IP and geo ifacermation
+# Get openvpn-pia public IP and geo information
 ovpnnet = subprocess.check_output(f"{raspi} {call} {ovpnnet_if} {myip}", shell=True, text=True).strip()
 ovpnnet_geo = requests.get(f"{ipapi}{ovpnnet}").json()
 with open("geoip/ovpnnet.json", "w") as f:
     json.dump(ovpnnet_geo, f)
 
-# Get network ifacermation for tun0 local interface
+# Get network information for tun0 local interface
 ovpnnet_iface = {}
 for interface in ["tun0"]:
     output = subprocess.check_output(f"{raspi} ip a show dev {interface}", shell=True, text=True)
@@ -107,23 +107,23 @@ with open('env/pianet.env', 'w') as f:
         else:
             f.write(f'{key.upper()}={value}\n')
 
-import docker
-import os
+#import docker
+#import os
 
 # Create a Docker client object
-client = docker.from_env()
+#client = docker.from_env()
 
 # Find the container by name
-container = client.containers.get('siemids_filebeat-raspberrysrv_1')
+#container = client.containers.get('siemids_filebeat-raspberrysrv_1')
 
 # Stop the container
-container.stop()
+#container.stop()
 
 # Delete the container
-container.remove()
+#container.remove()
 
 # Change to the directory containing the docker-compose.yml file
-os.chdir('/home/skynet/siemids/')
+#os.chdir('/home/skynet/siemids/')
 
 # Start the services defined in docker-compose.yml
-os.system('docker-compose up -d')
+#os.system('docker-compose up -d')
