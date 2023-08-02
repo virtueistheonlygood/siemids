@@ -170,6 +170,17 @@ services:
       - ELASTICSEARCH_PASSWORD=${ELASTIC_PASSWORD}
       - ELASTICSEARCH_SSL_CERTIFICATEAUTHORITIES=config/certs/ca/ca.crt
 
+  elastalert2:
+    depends_on:
+      kibana:
+        condition: service_healthy
+    network_mode: host
+    build:
+      context: elastalert/.
+      dockerfile: Dockerfile
+    environment:
+      - TZ=UTC
+
 volumes:
   es01data:
     driver: local

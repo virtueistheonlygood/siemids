@@ -1,1 +1,0 @@
-{"ovpnnet_geo": {"status": "success", "country": "Spain", "countryCode": "ES", "region": "MD", "regionName": "Madrid", "city": "Madrid", "zip": "28002", "lat": 40.4163, "lon": -3.6934, "timezone": "Europe/Madrid", "isp": "Datacamp Limited", "org": "Datacamp Limited", "as": "AS212238 Datacamp Limited", "query": "212.102.49.5"}, "ovpnnet_iface": {"tun0": "10.4.19.16"}}

@@ -52,7 +52,7 @@ vars:
 # The default logging directory.  Any log or output file will be
 # placed here if its not specified with a full path name. This can be
 # overridden with the -l command line parameter.
-default-log-dir: /nas/ids/suricata/
+default-log-dir: /suricata/
 
 # global stats configuration
 stats:
@@ -713,14 +713,8 @@ af-packet:
 
   - interface: wlan0
     cluster-id: 98
-  - interface: wlan1
-    cluster-id: 97
-  - interface: pia
+  - interface: wg0
     cluster-id: 96
-  - interface: tun0
-    cluster-id: 95
-  - interface: tls_decrypted
-    cluster-id: 94
     #threads: auto
     #use-mmap: no
     #tpacket-v3: yes

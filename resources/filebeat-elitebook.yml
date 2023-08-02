@@ -1,7 +1,7 @@
-hostname: "raspberrysrv"
-agent.hostname: "raspberrysrv"
-name: "raspberrysrv"
-tags: ["raspberrysrv", "suricata", "dns"]
+hostname: "elitebook"
+agent.hostname: "elitebook"
+name: "elitebook"
+tags: ["elitebook", "suricata", "dns"]
 
 filebeat.config.inputs:
   enabled: true
@@ -9,7 +9,6 @@ filebeat.config.inputs:
   reload.period: 10s
   env:
     - localnet.env
-    - ovpnnet.env
     - pianet.env
 
 #============================= Filebeat modules ===============================
@@ -28,14 +27,14 @@ filebeat.modules:
 - module: auditd
   log:
     enabled: true
-    var.paths: ["/nas/var/log/audit/audit.log*"]
+    var.paths: ["/var/log/audit/audit.log*"]
 - module: system
   syslog:
     enabled: true
-    var.paths: ["/nas/var/log/syslog*"]
+    var.paths: ["/var/log/syslog*"]
   auth:
     enabled: true
-    var.paths: ["/nas/var/log/auth.log*"]
+    var.paths: ["/var/log/auth.log*"]
 
 # ======================= Elasticsearch template setting =======================
 
@@ -61,7 +60,6 @@ processors:
 ### Local Networks
 ###
 
-processors:
   - add_fields:
       when:
         or:
@@ -70,7 +68,7 @@ processors:
           - contains:
               source.ip: "10.10.10."
           - contains:
-              source.ip: "192.168.100."
+              source.ip: "192.168.1."
       target: 'source.geo'
       fields:
         location: POINT (${localnet_geo_LON} ${localnet_geo_LAT})
@@ -89,7 +87,7 @@ processors:
           - contains:
               source.ip: "10.10.10."
           - contains:
-              source.ip: "192.168.100."
+              source.ip: "192.168.1."
       target: 'source.as'
       fields:
         organization.name: '${localnet_geo_ORG}'
@@ -102,7 +100,7 @@ processors:
           - contains:
               destination.ip: "10.10.10."
           - contains:
-              destination.ip: "192.168.100."
+              destination.ip: "192.168.1."
       target: 'destination.geo'
       fields:
         location: POINT (${localnet_geo_LON} ${localnet_geo_LAT})
@@ -121,62 +119,10 @@ processors:
           - contains:
               destination.ip: "10.10.10."
           - contains:
-              destination.ip: "192.168.100."
+              host.mac: "192.168.1."
       target: 'destination.as'
       fields:
         organization.name: '${localnet_geo_ORG}'
-
-###
-### OpenVPN
-###
-
-  - add_fields:
-      when:
-        or:
-          - contains:
-              source.ip: '${ovpnnet_iface_TUN0}'
-      target: 'source.geo'
-      fields:
-        location: POINT (${ovpnnet_geo_LON} ${ovpnnet_geo_LAT})
-        country_name: '${ovpnnet_geo_COUNTRY}'
-        country_iso_code: '${ovpnnet_geo_COUNTRYCODE}'
-        region_iso_code: '${ovpnnet_geo_REGION}'
-        continent_name: '${ovpnnet_geo_TIMEZONE}'
-        region_name: '${ovpnnet_geo_REGIONNAME}'
-        city_name: '${ovpnnet_geo_CITY}'
-
-  - add_fields:
-      when:
-        or:
-          - contains:
-              source.ip: '${ovpnnet_iface_TUN0}'
-      target: 'source.as'
-      fields:
-        organization.name: '${ovpnnet_geo_ORG}'
-
-  - add_fields:
-      when:
-        or:
-          - contains:
-              destination.ip: '${ovpnnet_iface_TUN0}'
-      target: 'destination.geo'
-      fields:
-        location: POINT (${ovpnnet_geo_LON} ${ovpnnet_geo_LAT})
-        country_name: '${ovpnnet_geo_COUNTRY}'
-        country_iso_code: '${ovpnnet_geo_COUNTRYCODE}'
-        region_iso_code: '${ovpnnet_geo_REGION}'
-        continent_name: '${ovpnnet_geo_TIMEZONE}'
-        region_name: '${ovpnnet_geo_REGIONNAME}'
-        city_name: '${ovpnnet_geo_CITY}'
-
-  - add_fields:
-      when:
-        or:
-          - contains:
-              destination.ip: '${ovpnnet_iface_TUN0}'
-      target: 'destination.as'
-      fields:
-        organization.name: '${ovpnnet_geo_ORG}'
 
 ###
 ### WireGuard
@@ -186,7 +132,7 @@ processors:
       when:
         or:
           - contains:
-              source.ip: '${pianet_iface_PIA}'
+              source.ip: '${pianet_iface_WG0}'
       target: 'source.geo'
       fields:
         location: POINT (${pianet_geo_LON} ${pianet_geo_LAT})
@@ -201,7 +147,7 @@ processors:
       when:
         or:
           - contains:
-              source.ip: '${pianet_iface_PIA}'
+              source.ip: '${pianet_iface_WG0}'
       target: 'source.as'
       fields:
         organization.name: '${pianet_geo_ORG}'
@@ -210,7 +156,7 @@ processors:
       when:
         or:
           - contains:
-              destination.ip: '${pianet_iface_PIA}'
+              destination.ip: '${pianet_iface_WG0}'
       target: 'destination.geo'
       fields:
         location: POINT (${pianet_geo_LON} ${pianet_geo_LAT})
@@ -225,7 +171,7 @@ processors:
       when:
         or:
           - contains:
-              destination.ip: '${pianet_iface_PIA}'
+              destination.ip: '${pianet_iface_WG0}'
       target: 'destination.as'
       fields:
         organization.name: '${pianet_geo_ORG}'
@@ -241,13 +187,13 @@ processors:
               destination.ip: "10.0.0.241"
       target: 'destination.geo'
       fields:
-        location: POINT (${ovpnnet_geo_LON} ${ovpnnet_geo_LAT})
-        country_name: '${ovpnnet_geo_COUNTRY}'
-        country_iso_code: '${ovpnnet_geo_COUNTRYCODE}'
-        region_iso_code: '${ovpnnet_geo_REGION}'
-        continent_name: '${ovpnnet_geo_TIMEZONE}'
-        region_name: '${ovpnnet_geo_REGIONNAME}'
-        city_name: '${ovpnnet_geo_CITY}'
+        location: POINT (${pianet_geo_LON} ${pianet_geo_LAT})
+        country_name: '${pianet_geo_COUNTRY}'
+        country_iso_code: '${pianet_geo_COUNTRYCODE}'
+        region_iso_code: '${pianet_geo_REGION}'
+        continent_name: '${pianet_geo_TIMEZONE}'
+        region_name: '${pianet_geo_REGIONNAME}'
+        city_name: '${pianet_geo_CITY}'
 
   - add_fields:
       when:
@@ -256,7 +202,7 @@ processors:
               destination.ip: "10.0.0.241"
       target: 'destination.as'
       fields:
-        organization.name: '${ovpnnet_geo_ORG}'
+        organization.name: '${pianet_geo_ORG}'
 
 output.elasticsearch:
   hosts: ["https://localhost:9200"]
