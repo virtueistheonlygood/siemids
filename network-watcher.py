@@ -91,5 +91,8 @@ container.remove()
 # Change to the directory containing the docker-compose.yml file
 os.chdir('/home/skynet/siemids/')
 
+# Clean old containers
+os.system('docker system prune -f')
+
 # Start the services defined in docker-compose.yml
 os.system('docker-compose up -d')
