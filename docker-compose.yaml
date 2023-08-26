@@ -63,6 +63,7 @@ services:
       retries: 120
 
   es01:
+    restart: always
     depends_on:
       setup:
         condition: service_healthy
@@ -107,6 +108,7 @@ services:
       retries: 120
 
   kibana:
+    restart: always
     depends_on:
       es01:
         condition: service_healthy
@@ -144,6 +146,7 @@ services:
       retries: 120
 
   filebeat-elitebook:
+    restart: always
     depends_on:
      kibana:
        condition: service_healthy
