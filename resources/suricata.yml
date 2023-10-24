@@ -1,5 +1,4 @@
 - module: suricata
-  geoip: true
   eve:
     enabled: true
     var.paths: ["/nas/ids/suricata/eve.json"]
