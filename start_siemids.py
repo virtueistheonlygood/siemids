@@ -79,18 +79,26 @@ import os
 # Create a Docker client object
 client = docker.from_env()
 
-# Find the container by name
-container = client.containers.get('siemids_filebeat-elitebook_1')
+# Specify the container name
+container_name = 'siemids_filebeat-elitebook_1'
 
-# Stop the container
-container.stop()
+try:
+    # Find the container by name
+    container = client.containers.get(container_name)
 
-# Delete the container
-container.remove()
+    # Stop the container
+    container.stop()
 
-# Change to the directory containing the docker-compose.yml file
-os.chdir('/home/skynet/github-repos/siemids/')
+    # Delete the container
+    container.remove()
+    print(f"Container '{container_name}' stopped and removed successfully.")
 
-# Start the services defined in docker-compose.yml
-os.system('docker-compose up -d')
+except docker.errors.NotFound as e:
+    print(f"Container '{container_name}' not found. Proceeding with docker-compose up -d.")
 
+finally:
+    # Change to the directory containing the docker-compose.yml file
+    os.chdir('/home/skynet/github-repos/siemids/')
+
+    # Start the services defined in docker-compose.yml
+    os.system('docker-compose up -d')

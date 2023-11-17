@@ -145,6 +145,19 @@ services:
       timeout: 10s
       retries: 120
 
+  setup_kibana:
+    image: alpine/curl
+    network_mode: host
+    volumes: 
+      - $PWD/certs:/usr/local/certs
+      - $PWD/saved.objects:/usr/local/saved.objects
+    command: >
+      curl -s -X POST 'https://localhost:5601/api/saved_objects/_import?compatibilityMode=true' -H 'kbn-xsrf: true' --cacert /usr/local/certs/ca/ca.crt --cert /usr/local/certs/es01/es01.crt --key /usr/local/certs/es01/es01.key -u elastic:${ELASTIC_PASSWORD} --form file=@/usr/local/saved.objects/export-elitebook.ndjson
+    environment: 
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+    depends_on:
+      - kibana
+
   filebeat-elitebook:
     restart: always
     depends_on:
