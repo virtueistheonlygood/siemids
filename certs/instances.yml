@@ -5,18 +5,6 @@ instances:
        - localhost
      ip:
        - 127.0.0.1
-   - name: es02
-     dns:
-       - es02
-       - localhost
-     ip:
-       - 127.0.0.1
-   - name: es03
-     dns:
-       - es03
-       - localhost
-     ip:
-       - 127.0.0.1
    - name: kibana
      dns:
        - kibana
@@ -26,6 +14,12 @@ instances:
    - name: filebeat
      dns:
        - filebeat
+       - localhost
+     ip:
+       - 127.0.0.1
+   - name: logstash
+     dns:
+       - logstash
        - localhost
      ip:
        - 127.0.0.1

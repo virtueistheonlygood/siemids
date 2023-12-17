@@ -206,6 +206,7 @@ processors:
 
 output.elasticsearch:
   hosts: ["https://localhost:9200"]
+
 #  index: "logs-%{+yyyy.MM.dd}"
 #  indices:
 #    - index: "suricata-logs-%{+yyyy.MM.dd}"
