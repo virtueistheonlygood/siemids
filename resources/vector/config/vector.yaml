@@ -1,0 +1,59 @@
+# Source Configuration
+sources:
+  suricata:
+    type: file
+    include:
+      - "/suricata/eve.json"
+    read_from: end
+    fingerprint:
+      strategy: "device_and_inode"
+    ignore_checkpoints: false  # Ensure checkpoints are used to avoid re-ingesting logs
+
+
+# Transform Configuration (Optional)
+
+enrichment_tables:
+  geoip_table:
+    path: "/etc/vector/GeoLite2-City.mmdb"
+    type: geoip
+
+transforms:
+  suricata_json:
+    type: remap
+    inputs:
+      - suricata
+    source: |-
+      . = parse_json!(string!(.message))
+ 
+ transforms:
+  geoip:
+    type: remap
+    inputs:
+      - suricata_json
+    source: src_ip
+    path: "/etc/vector/GeoLite2-City.mmdb"
+
+# Sink Configuration
+sinks:
+  elastic:
+    type: elasticsearch
+    inputs:
+      - geoip_src
+    endpoints: ["${ELASTICSEARCH_HOSTS}"]
+    auth:
+      strategy: basic
+      user: "${ELASTICSEARCH_USERNAME}"
+      password: "${ELASTICSEARCH_PASSWORD}"
+    mode: bulk
+    bulk:
+      index: "logs-%Y.%m.%d"
+#      index: "logs"
+    request:
+      timeout_secs: 60
+    batch:
+      max_bytes: 1048576
+      timeout_secs: 1
+    tls:
+      ca_file: "/etc/vector/certs/ca/ca.crt"
+      verify_certificate: true
+      verify_hostname: true

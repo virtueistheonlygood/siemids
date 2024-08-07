@@ -66,6 +66,10 @@ stats:
   #stream-events: false
 
 # Configure the type of alert (and other) logging you would like.
+# # GeoIP2 database file. Specify path and filename of GeoIP2 database
+# if using rules with "geoip" rule option.
+geoip-database: /usr/share/GeoIP/GeoLite2-City.mmdb 
+
 outputs:
   # a line based alerts log similar to Snort's fast.log
   - fast:
@@ -151,11 +155,13 @@ outputs:
             # Enable the logging of tagged packets for rules using the
             # "tag" keyword.
             tagged-packets: yes
+            geoip: [src_ip, dest_ip]
         - http:
             extended: yes     # enable this for extended logging information
             # custom allows additional http fields to be included in eve-log
             # the example below adds three additional fields when uncommented
             #custom: [Accept-Encoding, Accept-Language, Authorization]
+            geoip: [src_ip, dest_ip]
         - dns:
             # This configuration uses the new DNS logging format,
             # the old configuration is still available:
@@ -186,6 +192,7 @@ outputs:
             # Answer types to log.
             # Default: all
             #types: [a, aaaa, cname, mx, ns, ptr, txt]
+            geoip: [src_ip, dest_ip]
         - tls:
             extended: yes     # enable this for extended logging information
             # output TLS transaction where the session is resumed using a
@@ -194,6 +201,7 @@ outputs:
             # custom allows to control which tls fields that are included
             # in eve-log
             #custom: [subject, issuer, session_resumed, serial, fingerprint, sni, version, not_before, not_after, certificate, chain, ja3]
+            geoip: [src_ip, dest_ip]
         - files:
             force-magic: no   # force logging magic on all logged files
             # force logging of checksums, available hash functions are md5,
@@ -204,7 +212,7 @@ outputs:
         #    flows: all       # start or all: 'start' logs only a single drop
         #                     # per flow direction. All logs each dropped pkt.
         - smtp:
-            #extended: yes # enable this for extended logging information
+            extended: yes # enable this for extended logging information
             # this includes: bcc, message-id, subject, x_mailer, user-agent
             # custom fields logging from the list:
             #  reply-to, bcc, message-id, subject, x-mailer, user-agent, received,
@@ -215,12 +223,15 @@ outputs:
             # for the body you need to set app-layer.protocols.smtp.mime.body-md5
             # to yes
             #md5: [body, subject]
+            geoip: [src_ip, dest_ip]
 
         #- dnp3
-        - nfs
-        - smb
+        - nfs:
+            geoip: [src_ip, dest_ip]
+        - smb:
+            geoip: [src_ip, dest_ip]
         - tftp
-        - ikev2
+        - ike
         - krb5
         - dhcp:
             # DHCP logging requires Rust.
@@ -230,13 +241,16 @@ outputs:
             # default), just enough information to map a MAC address
             # to an IP address is logged.
             extended: no
-        - ssh
-        - stats:
-            totals: yes       # stats for all threads merged together
-            threads: no       # per thread stats
-            deltas: no        # include delta values
+            geoip: [src_ip, dest_ip]
+        - ssh:
+            geoip: [src_ip, dest_ip]
+        #- stats:
+        #    totals: yes       # stats for all threads merged together
+        #    threads: no       # per thread stats
+        #    deltas: no        # include delta values
         # bi-directional flows
-        - flow
+        - flow:
+            geoip: [src_ip, dest_ip]
         # uni-directional flows
         #- netflow
 
@@ -1888,6 +1902,3 @@ reference-config-file: /etc/suricata/reference.config
 
 detect-engine:
   - rule-reload: true
-
-geoip:
-  enabled: yes

@@ -204,8 +204,8 @@ processors:
       fields:
         organization.name: '${pianet_geo_ORG}'
 
-output.elasticsearch:
-  hosts: ["https://localhost:9200"]
+#output.elasticsearch:
+#  hosts: ["https://localhost:9200"]
 
 #  index: "logs-%{+yyyy.MM.dd}"
 #  indices:
@@ -218,10 +218,15 @@ output.elasticsearch:
 #    - index: "system-logs-%{+yyyy.MM.dd}"
 #      when.equals:
 #        event.module: "system"
-  username: elastic
-  password: '${ELASTICSEARCH_PASSWORD}'
+#  username: elastic
+#  password: '${ELASTICSEARCH_PASSWORD}'
+#  ssl:
+#    certificate_authorities: "/usr/share/elasticsearch/config/certs/ca/ca.crt"
+#    certificate: "/usr/share/elasticsearch/config/certs/filebeat/filebeat.crt"
+#    key: "/usr/share/elasticsearch/config/certs/filebeat/filebeat.key"
+output.tcp:
+  hosts: ["localhost:9000"]
   ssl:
     certificate_authorities: "/usr/share/elasticsearch/config/certs/ca/ca.crt"
     certificate: "/usr/share/elasticsearch/config/certs/filebeat/filebeat.crt"
     key: "/usr/share/elasticsearch/config/certs/filebeat/filebeat.key"
-

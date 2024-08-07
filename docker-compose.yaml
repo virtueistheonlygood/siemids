@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   setup:
     image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION}
@@ -193,6 +191,73 @@ services:
       - ELASTICSEARCH_USERNAME=elastic
       - ELASTICSEARCH_PASSWORD=${ELASTIC_PASSWORD}
       - ELASTICSEARCH_SSL_CERTIFICATEAUTHORITIES=config/certs/ca/ca.crt
+
+  logstash-elitebook:
+    restart: always
+    depends_on:
+      kibana:
+        condition: service_healthy
+    image: docker.elastic.co/logstash/logstash:${STACK_VERSION}
+    user: root
+    network_mode: host
+    volumes:
+      - $PWD/resources/logstash/logstash.yml:/usr/share/logstash/config/logstash.yml
+      - $PWD/resources/logstash/pipeline:/usr/share/logstash/pipeline
+      - $PWD/certs:/usr/share/elasticsearch/config/certs
+      - $PWD/env/localnet.env:/usr/share/filebeat/localnet.env
+      - $PWD/env/pianet.env:/usr/share/filebeat/pianet.env
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/lib/docker/containers/:/var/lib/docker/containers/:ro
+      # This is needed for filebeat to load logs for system and auth modules
+      - /var/log/:/var/log/:ro
+      - /suricata/:/suricata/:ro
+    env_file:
+      - $PWD/env/localnet.env
+      - $PWD/env/pianet.env
+    environment:
+      - ELASTICSEARCH_HOSTS=https://localhost:9200
+      - ELASTICSEARCH_USERNAME=elastic
+      - ELASTICSEARCH_PASSWORD=${ELASTIC_PASSWORD}
+      - ELASTICSEARCH_SSL_CERTIFICATEAUTHORITIES=config/certs/ca/ca.crt
+      - xpack.security.enabled=true
+      - xpack.security.http.ssl.enabled=true
+      - xpack.security.http.ssl.key=certs/logstash/logstash.key
+      - xpack.security.http.ssl.certificate=certs/logstash/logstash.crt
+      - xpack.security.http.ssl.certificate_authorities=certs/ca/ca.crt
+
+  vector:
+    restart: always
+    depends_on:
+      kibana:
+        condition: service_healthy
+    image: timberio/vector:latest
+    network_mode: host
+    volumes:
+      - $PWD/resources/vector/config/vector.yaml:/etc/vector/vector.yaml
+      - $PWD/certs:/etc/vector/certs
+      - $PWD/env/localnet.env:/etc/vector/localnet.env
+      - $PWD/env/pianet.env:/etc/vector/pianet.env
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/lib/docker/containers/:/var/lib/docker/containers/:ro
+      - /suricata/:/suricata/:ro
+    environment:
+      - ELASTICSEARCH_HOSTS=https://localhost:9200
+      - ELASTICSEARCH_USERNAME=elastic
+      - ELASTICSEARCH_PASSWORD=${ELASTIC_PASSWORD}
+      - ELASTICSEARCH_SSL_CERTIFICATEAUTHORITIES=config/certs/ca/ca.crt
+
+  alienvault-flask_api:
+    restart: always
+    depends_on:
+      kibana:
+        condition: service_healthy
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: alienvault-flask_api
+    network_mode: bridge
+    ports:
+      - "5000:5000"
 
 volumes:
   es01data:

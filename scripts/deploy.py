@@ -80,7 +80,7 @@ import os
 client = docker.from_env()
 
 # Specify the container name
-container_name = 'siemids_filebeat-elitebook_1'
+container_name = 'siemids-vector-1'
 
 try:
     # Find the container by name
