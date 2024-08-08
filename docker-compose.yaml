@@ -164,7 +164,7 @@ services:
     environment: 
       - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
 
-  filebeat-elitebook:
+  filebeat:
     restart: always
     depends_on:
       kibana:
@@ -192,7 +192,7 @@ services:
       - ELASTICSEARCH_PASSWORD=${ELASTIC_PASSWORD}
       - ELASTICSEARCH_SSL_CERTIFICATEAUTHORITIES=config/certs/ca/ca.crt
 
-  logstash-elitebook:
+  logstash:
     restart: always
     depends_on:
       kibana:
@@ -201,8 +201,8 @@ services:
     user: root
     network_mode: host
     volumes:
-      - $PWD/resources/logstash/logstash.yml:/usr/share/logstash/config/logstash.yml
-      - $PWD/resources/logstash/pipeline:/usr/share/logstash/pipeline
+      # - $PWD/resources/logstash/logstash.yml:/usr/share/logstash/config/logstash.yml
+      # - $PWD/resources/logstash/pipeline:/usr/share/logstash/pipeline
       - $PWD/certs:/usr/share/elasticsearch/config/certs
       - $PWD/env/localnet.env:/usr/share/filebeat/localnet.env
       - $PWD/env/pianet.env:/usr/share/filebeat/pianet.env
