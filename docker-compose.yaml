@@ -230,7 +230,7 @@ services:
     depends_on:
       kibana:
         condition: service_healthy
-    image: timberio/vector:latest
+    image: timberio/vector:0.40.0-debian
     network_mode: host
     volumes:
       - $PWD/resources/vector/config/vector.yaml:/etc/vector/vector.yaml

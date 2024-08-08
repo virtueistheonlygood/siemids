@@ -12,11 +12,6 @@ sources:
 
 # Transform Configuration (Optional)
 
-enrichment_tables:
-  geoip_table:
-    path: "/etc/vector/GeoLite2-City.mmdb"
-    type: geoip
-
 transforms:
   suricata_json:
     type: remap
@@ -24,21 +19,13 @@ transforms:
       - suricata
     source: |-
       . = parse_json!(string!(.message))
- 
- transforms:
-  geoip:
-    type: remap
-    inputs:
-      - suricata_json
-    source: src_ip
-    path: "/etc/vector/GeoLite2-City.mmdb"
 
 # Sink Configuration
 sinks:
   elastic:
     type: elasticsearch
     inputs:
-      - geoip_src
+      - suricata_json
     endpoints: ["${ELASTICSEARCH_HOSTS}"]
     auth:
       strategy: basic
@@ -46,7 +33,7 @@ sinks:
       password: "${ELASTICSEARCH_PASSWORD}"
     mode: bulk
     bulk:
-      index: "logs-%Y.%m.%d"
+      index: "suricata-%Y.%m.%d"
 #      index: "logs"
     request:
       timeout_secs: 60

@@ -199,7 +199,7 @@ services:
     depends_on:
       kibana:
         condition: service_healthy
-    image: timberio/vector:latest
+    image: vector:latest
     network_mode: host
     volumes:
       - $PWD/resources/vector/config/vector.toml:/etc/vector/vector.toml
