@@ -4,7 +4,7 @@ services:
   setup:
     image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION}
     volumes:
-      - $PWD/certs:/usr/share/elasticsearch/config/certs
+      - /home/skynet/Downloads/github-repos/siemids/certs:/usr/share/elasticsearch/config/certs
     user: "0"
     command: >
       bash -c '
@@ -75,7 +75,7 @@ services:
         condition: service_healthy
     image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION}
     volumes:
-      - $PWD/certs:/usr/share/elasticsearch/config/certs
+      - /home/skynet/Downloads/github-repos/siemids/certs:/usr/share/elasticsearch/config/certs
       - es01data:/usr/share/elasticsearch/data
     ports:
       - ${ES_PORT}:9200
@@ -120,9 +120,9 @@ services:
         condition: service_healthy
     image: docker.elastic.co/kibana/kibana:${STACK_VERSION}
     volumes:
-      - $PWD/certs:/usr/share/kibana/config/certs
+      - /home/skynet/Downloads/github-repos/siemids/certs:/usr/share/kibana/config/certs
       - kibanadata:/usr/share/kibana/data
-      - $PWD/resources/kibana/kibana.yml:/usr/share/kibana/config/kibana.yml
+      - /home/skynet/Downloads/github-repos/siemids/resources/kibana/kibana.yml:/usr/share/kibana/config/kibana.yml
     ports:
       - ${KIBANA_PORT}:5601
     environment:
@@ -159,8 +159,8 @@ services:
     image: alpine/curl
     network_mode: host
     volumes: 
-      - $PWD/certs:/usr/local/certs
-      - $PWD/saved.objects:/usr/local/saved.objects
+      - /home/skynet/Downloads/github-repos/siemids/certs:/usr/local/certs
+      - /home/skynet/Downloads/github-repos/siemids/saved.objects:/usr/local/saved.objects
     command: >
       curl -s -X POST 'https://localhost:5601/api/saved_objects/_import?compatibilityMode=true' -H 'kbn-xsrf: true' --cacert /usr/local/certs/ca/ca.crt --cert /usr/local/certs/es01/es01.crt --key /usr/local/certs/es01/es01.key -u elastic:${ELASTIC_PASSWORD} --form file=@/usr/local/saved.objects/export-elitebook.ndjson
     environment: 
@@ -175,19 +175,19 @@ services:
     user: root
     network_mode: host
     volumes:
-      - $PWD/resources/filebeat/filebeat-elitebook.yml:/usr/share/filebeat/filebeat.yml
-      - $PWD/resources/suricata/suricata.yml:/usr/share/filebeat/modules.d/suricata.yml
-      - $PWD/env/localnet.env:/usr/share/filebeat/localnet.env
-      - $PWD/env/pianet.env:/usr/share/filebeat/pianet.env
-      - $PWD/certs:/usr/share/elasticsearch/config/certs
+      - /home/skynet/Downloads/github-repos/siemids/resources/filebeat/filebeat-elitebook.yml:/usr/share/filebeat/filebeat.yml
+      - /home/skynet/Downloads/github-repos/siemids/resources/suricata/suricata.yml:/usr/share/filebeat/modules.d/suricata.yml
+      - /home/skynet/Downloads/github-repos/siemids/env/localnet.env:/usr/share/filebeat/localnet.env
+      - /home/skynet/Downloads/github-repos/siemids/env/pianet.env:/usr/share/filebeat/pianet.env
+      - /home/skynet/Downloads/github-repos/siemids/certs:/usr/share/elasticsearch/config/certs
       - /var/run/docker.sock:/var/run/docker.sock
       - /var/lib/docker/containers/:/var/lib/docker/containers/:ro
       # This is needed for filebeat to load logs for system and auth modules
       - /var/log/:/var/log/:ro
       - /suricata/:/suricata/:ro
     env_file:
-      - $PWD/env/localnet.env
-      - $PWD/env/pianet.env
+      - /home/skynet/Downloads/github-repos/siemids/env/localnet.env
+      - /home/skynet/Downloads/github-repos/siemids/env/pianet.env
     environment:
       - ELASTICSEARCH_HOSTS=https://localhost:9200
       - ELASTICSEARCH_USERNAME=elastic
@@ -202,10 +202,10 @@ services:
     image: vector:latest
     network_mode: host
     volumes:
-      - $PWD/resources/vector/config/vector.toml:/etc/vector/vector.toml
-      - $PWD/certs:/etc/vector/certs
-      - $PWD/env/localnet.env:/etc/vector/localnet.env
-      - $PWD/env/pianet.env:/etc/vector/pianet.env
+      - /home/skynet/Downloads/github-repos/siemids/resources/vector/config/vector.toml:/etc/vector/vector.toml
+      - /home/skynet/Downloads/github-repos/siemids/certs:/etc/vector/certs
+      - /home/skynet/Downloads/github-repos/siemids/env/localnet.env:/etc/vector/localnet.env
+      - /home/skynet/Downloads/github-repos/siemids/env/pianet.env:/etc/vector/pianet.env
       - /var/run/docker.sock:/var/run/docker.sock
       - /var/lib/docker/containers/:/var/lib/docker/containers/:ro
       - /suricata/:/suricata/:ro

@@ -1,2 +1,2 @@
-docker system prune -f
-docker volume prune -f
+podman system prune -f
+podman volume prune -f

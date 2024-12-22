@@ -4,7 +4,7 @@ import json
 
 call = "curl -sS"
 myip = "ifconfig.me"
-localnet_if = "--interface wlan0"
+localnet_if = "--interface wlp3s0"
 pianet_if = "--interface wg0"
 ipapi = "http://ip-api.com/json/"
 
@@ -16,7 +16,7 @@ with open("geoip/localnet.json", "w") as f:
 
 # Get network information for all local interfaces
 localnet_iface = {}
-for interface in ["wlan0"]:
+for interface in ["wlp3s0"]:
     output = subprocess.check_output(f"ip a show dev {interface}", shell=True, text=True)
     ip_address = output.split("inet ")[1].split("/")[0].strip()
     localnet_iface[interface] = ip_address
@@ -72,33 +72,3 @@ with open('env/pianet.env', 'w') as f:
                 f.write(f'{key}_{subkey.upper()}={subvalue}\n')
         else:
             f.write(f'{key.upper()}={value}\n')
-
-import docker
-import os
-
-# Create a Docker client object
-client = docker.from_env()
-
-# Specify the container name
-container_name = 'siemids-vector-1'
-
-try:
-    # Find the container by name
-    container = client.containers.get(container_name)
-
-    # Stop the container
-    container.stop()
-
-    # Delete the container
-    container.remove()
-    print(f"Container '{container_name}' stopped and removed successfully.")
-
-except docker.errors.NotFound as e:
-    print(f"Container '{container_name}' not found. Proceeding with docker-compose up -d.")
-
-finally:
-    # Change to the directory containing the docker-compose.yml file
-    os.chdir('/home/skynet/github-repos/siemids/')
-
-    # Start the services defined in docker-compose.yml
-    os.system('docker-compose up -d')
