@@ -11,6 +11,16 @@ filebeat.config.inputs:
     - localnet.env
     - pianet.env
 
+filebeat.inputs:
+  - type: log
+    enabled: true
+    paths:
+      - /var/log/pihole/pihole.log
+      - /var/log/pihole/pihole-FTL.log
+    fields:
+      event.dataset: pihole.log
+    fields_under_root: true
+
 #============================= Filebeat modules ===============================
 
 filebeat.config.modules:
@@ -203,6 +213,176 @@ processors:
       target: 'destination.as'
       fields:
         organization.name: '${pianet_geo_ORG}'
+
+  # Parse the main structure of the pihole log
+  - dissect:
+      tokenizer: "%{timestamp} %{+timestamp} %{+timestamp} %{service}[%{pid}]: %{message}"
+      field: "message"
+      target_prefix: ""
+
+  - dissect:
+      when:
+        contains:
+          message: "query"
+      tokenizer: "%{timestamp} %{+timestamp} %{+timestamp} %{service}[%{pid}]: %{action}[%{type}] %{domain} from %{source_ip}"
+      field: "message"
+      target_prefix: "query"
+  - rename:
+      when:
+        has_fields: ["query.action"]
+      fields:
+        - from: "query.action"
+          to: "action"
+  - rename:
+      when:
+        has_fields: ["query.domain"]
+      fields:
+        - from: "query.domain"
+          to: "domain"
+  - rename:
+      when:
+        has_fields: ["query.source_ip"]
+      fields:
+        - from: "query.source_ip"
+          to: "source_ip"
+
+  - dissect:
+      when:
+        contains:
+          message: "reply"
+      tokenizer: "%{timestamp} %{+timestamp} %{+timestamp} %{service}[%{pid}]: %{action} %{domain} is %{data}"
+      field: "message"
+      target_prefix: "reply"
+  - rename:
+      when:
+        has_fields: ["reply.action"]
+      fields:
+        - from: "reply.action"
+          to: "action"
+  - rename:
+      when:
+        has_fields: ["reply.domain"]
+      fields:
+        - from: "reply.domain"
+          to: "domain"
+  - rename:
+      when:
+        has_fields: ["reply.data"]
+      fields:
+        - from: "reply.data"
+          to: "destination_ip"
+
+  - dissect:
+      when:
+        contains:
+          message: "forwarded"
+      tokenizer: "%{timestamp} %{+timestamp} %{+timestamp} %{service}[%{pid}]: %{action} %{domain} to %{data}"
+      field: "message"
+      target_prefix: "forwarded"
+  - rename:
+      when:
+        has_fields: ["forwarded.action"]
+      fields:
+        - from: "forwarded.action"
+          to: "action"
+  - rename:
+      when:
+        has_fields: ["forwarded.domain"]
+      fields:
+        - from: "forwarded.domain"
+          to: "domain"
+  - rename:
+      when:
+        has_fields: ["forwarded.data"]
+      fields:
+        - from: "forwarded.data"
+          to: "destination_ip"
+
+  - dissect:
+      when:
+        contains:
+          message: "cached"
+      tokenizer: "%{timestamp} %{+timestamp} %{+timestamp} %{service}[%{pid}]: %{action} %{domain} is %{data}"
+      field: "message"
+      target_prefix: "cached"
+  - rename:
+      when:
+        has_fields: ["cached.action"]
+      fields:
+        - from: "cached.action"
+          to: "action"
+  - rename:
+      when:
+        has_fields: ["cached.domain"]
+      fields:
+        - from: "cached.domain"
+          to: "domain"
+  - rename:
+      when:
+        has_fields: ["cached.data"]
+      fields:
+        - from: "cached.data"
+          to: "destination_ip"
+
+  - dissect:
+      when:
+        contains:
+          message: "gravity blocked"
+      tokenizer: "%{timestamp} %{+timestamp} %{+timestamp} %{service}[%{pid}]: %{action} %{+action} %{domain} is %{ip}"
+      field: "message"
+      target_prefix: "blocked"
+  - rename:
+      when:
+        has_fields: ["blocked.action"]
+      fields:
+        - from: "blocked.action"
+          to: "action"
+  - rename:
+      when:
+        has_fields: ["blocked.domain"]
+      fields:
+        - from: "blocked.domain"
+          to: "domain"
+  - rename:
+      when:
+        has_fields: ["blocked.ip"]
+      fields:
+        - from: "blocked.ip"
+          to: "destination_ip"
+
+  - dissect:
+      when:
+        contains:
+          message: "regex blacklisted"
+      tokenizer: "%{timestamp} %{+timestamp} %{+timestamp} %{service}[%{pid}]: %{action} %{+action} %{domain} is %{ip}"
+      field: "message"
+      target_prefix: "blacklisted"
+
+  - dissect:
+      when:
+        contains:
+          message: "exactly blacklisted"
+      tokenizer: "%{timestamp} %{+timestamp} %{+timestamp} %{service}[%{pid}]: %{action} %{+action} %{domain} is %{ip}"
+      field: "message"
+      target_prefix: "blacklisted"
+  - rename:
+      when:
+        has_fields: ["blacklisted.action"]
+      fields:
+        - from: "blacklisted.action"
+          to: "action"
+  - rename:
+      when:
+        has_fields: ["blacklisted.domain"]
+      fields:
+        - from: "blacklisted.domain"
+          to: "domain"
+  - rename:
+      when:
+        has_fields: ["blacklisted.ip"]
+      fields:
+        - from: "blacklisted.ip"
+          to: "destination_ip"
 
 output.elasticsearch:
   hosts: ["https://es01:9200"]
