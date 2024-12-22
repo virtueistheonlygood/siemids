@@ -54,8 +54,8 @@ services:
         fi;
         echo "Setting file permissions"
         chown -R root:root config/certs;
-        find . -type d -exec chmod 750 \{\} \;;
-        find . -type f -exec chmod 640 \{\} \;;
+        find config/certs -type d -exec chmod 750 {} \;
+        find config/certs -type f -exec chmod 640 {} \;
         echo "Waiting for Elasticsearch availability";
         until curl -s --cacert config/certs/ca/ca.crt https://es01:9200 | grep -q "missing authentication credentials"; do sleep 30; done;
         echo "Setting kibana_system password";
@@ -67,6 +67,12 @@ services:
       interval: 1s
       timeout: 5s
       retries: 120
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+        reservations:
+          memory: 512m
 
   es01:
     restart: always
@@ -74,14 +80,19 @@ services:
       setup:
         condition: service_healthy
     image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION}
-    environment:
-      - JAVA_OPTS=-Xms2g -Xmx5g
     volumes:
       - /home/skynet/Downloads/github-repos/siemids/certs:/usr/share/elasticsearch/config/certs
       - es01data:/usr/share/elasticsearch/data
     ports:
       - ${ES_PORT}:9200
+    deploy:
+      resources:
+        limits:
+          memory: 8g
+        reservations:
+          memory: 6g
     environment:
+      - ES_JAVA_OPTS=-Xms4g -Xmx4g
       - node.name=es01
       - cluster.name=${CLUSTER_NAME}
       - cluster.initial_master_nodes=es01
@@ -120,15 +131,20 @@ services:
       es01:
         condition: service_healthy
     image: docker.elastic.co/kibana/kibana:${STACK_VERSION}
-    environment:
-      - JAVA_OPTS=-Xms512m -Xmx2g
     volumes:
       - /home/skynet/Downloads/github-repos/siemids/certs:/usr/share/kibana/config/certs
       - kibanadata:/usr/share/kibana/data
       - /home/skynet/Downloads/github-repos/siemids/resources/kibana/kibana.yml:/usr/share/kibana/config/kibana.yml
     ports:
       - ${KIBANA_PORT}:5601
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+        reservations:
+          memory: 2g
     environment:
+      - NODE_OPTIONS=--max-old-space-size=2048
       - SERVERNAME=kibana
       - XPACK_SECURITY_ENABLED=true
       - ELASTICSEARCH_HOSTS=https://es01:9200
@@ -159,8 +175,6 @@ services:
       kibana:
         condition: service_healthy
     image: docker.io/alpine/curl
-    environment:
-      - JAVA_OPTS=-Xms512m -Xmx2g
     network_mode: host
     volumes: 
       - /home/skynet/Downloads/github-repos/siemids/certs:/usr/local/certs
@@ -169,12 +183,24 @@ services:
       sh -c 'sleep 60 && curl -s -X POST "https://localhost:5601/api/saved_objects/_import?compatibilityMode=true" -H "kbn-xsrf: true" --cacert /usr/local/certs/ca/ca.crt --cert /usr/local/certs/es01/es01.crt --key /usr/local/certs/es01/es01.key -u elastic:${ELASTIC_PASSWORD} --form file=@/usr/local/saved.objects/siemids.ndjson'
     environment: 
       - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+        reservations:
+          memory: 128m
 
   filebeat:
     restart: unless-stopped
     depends_on:
       es01:
         condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+        reservations:
+          memory: 256m
     image: docker.elastic.co/beats/filebeat:${STACK_VERSION}
     command: ["filebeat", "--environment", "container", "-c", "/usr/share/filebeat/filebeat.yml"]
     user: root
@@ -194,7 +220,7 @@ services:
       - /home/skynet/Downloads/github-repos/siemids/env/localnet.env
       - /home/skynet/Downloads/github-repos/siemids/env/pianet.env
     environment:
-      - ELASTICSEARCH_HOSTS=https://es01:9200
+      - ELASTICSEARCH_HOSTS=https://localhost:9200
       - ELASTICSEARCH_USERNAME=elastic
       - ELASTICSEARCH_PASSWORD=${ELASTIC_PASSWORD}
       - ELASTICSEARCH_SSL_CERTIFICATEAUTHORITIES=config/certs/ca/ca.crt
