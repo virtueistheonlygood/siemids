@@ -232,19 +232,19 @@ processors:
         has_fields: ["query.action"]
       fields:
         - from: "query.action"
-          to: "action"
+          to: "event.action"
   - rename:
       when:
         has_fields: ["query.domain"]
       fields:
         - from: "query.domain"
-          to: "domain"
+          to: "event.domain"
   - rename:
       when:
         has_fields: ["query.source_ip"]
       fields:
         - from: "query.source_ip"
-          to: "source_ip"
+          to: "source.ip"
 
   - dissect:
       when:
@@ -258,19 +258,19 @@ processors:
         has_fields: ["reply.action"]
       fields:
         - from: "reply.action"
-          to: "action"
+          to: "event.action"
   - rename:
       when:
         has_fields: ["reply.domain"]
       fields:
         - from: "reply.domain"
-          to: "domain"
+          to: "event.domain"
   - rename:
       when:
         has_fields: ["reply.data"]
       fields:
         - from: "reply.data"
-          to: "destination_ip"
+          to: "destination.ip"
 
   - dissect:
       when:
@@ -284,19 +284,19 @@ processors:
         has_fields: ["forwarded.action"]
       fields:
         - from: "forwarded.action"
-          to: "action"
+          to: "event.action"
   - rename:
       when:
         has_fields: ["forwarded.domain"]
       fields:
         - from: "forwarded.domain"
-          to: "domain"
+          to: "event.domain"
   - rename:
       when:
         has_fields: ["forwarded.data"]
       fields:
         - from: "forwarded.data"
-          to: "destination_ip"
+          to: "destination.ip"
 
   - dissect:
       when:
@@ -310,19 +310,19 @@ processors:
         has_fields: ["cached.action"]
       fields:
         - from: "cached.action"
-          to: "action"
+          to: "event.action"
   - rename:
       when:
         has_fields: ["cached.domain"]
       fields:
         - from: "cached.domain"
-          to: "domain"
+          to: "event.domain"
   - rename:
       when:
         has_fields: ["cached.data"]
       fields:
         - from: "cached.data"
-          to: "destination_ip"
+          to: "destination.ip"
 
   - dissect:
       when:
@@ -336,19 +336,19 @@ processors:
         has_fields: ["blocked.action"]
       fields:
         - from: "blocked.action"
-          to: "action"
+          to: "event.action"
   - rename:
       when:
         has_fields: ["blocked.domain"]
       fields:
         - from: "blocked.domain"
-          to: "domain"
+          to: "event.domain"
   - rename:
       when:
         has_fields: ["blocked.ip"]
       fields:
         - from: "blocked.ip"
-          to: "destination_ip"
+          to: "destination.ip"
 
   - dissect:
       when:
@@ -370,19 +370,19 @@ processors:
         has_fields: ["blacklisted.action"]
       fields:
         - from: "blacklisted.action"
-          to: "action"
+          to: "event.action"
   - rename:
       when:
         has_fields: ["blacklisted.domain"]
       fields:
         - from: "blacklisted.domain"
-          to: "domain"
+          to: "event.domain"
   - rename:
       when:
         has_fields: ["blacklisted.ip"]
       fields:
         - from: "blacklisted.ip"
-          to: "destination_ip"
+          to: "destination.ip"
 
 output.elasticsearch:
   hosts: ["https://es01:9200"]

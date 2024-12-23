@@ -180,7 +180,13 @@ services:
       - /home/skynet/Downloads/github-repos/siemids/certs:/usr/local/certs
       - /home/skynet/Downloads/github-repos/siemids/saved.objects:/usr/local/saved.objects
     command: >
-      sh -c 'sleep 60 && curl -s -X POST "https://localhost:5601/api/saved_objects/_import?compatibilityMode=true" -H "kbn-xsrf: true" --cacert /usr/local/certs/ca/ca.crt --cert /usr/local/certs/es01/es01.crt --key /usr/local/certs/es01/es01.key -u elastic:${ELASTIC_PASSWORD} --form file=@/usr/local/saved.objects/siemids.ndjson'
+      sh -c '
+        until curl -s -I --cacert /usr/local/certs/ca/ca.crt https://localhost:5601 | grep -q "HTTP/1.1 302 Found"; do
+          echo "Waiting for Kibana to be ready...";
+          sleep 10;
+        done;
+        curl -s -X POST "https://localhost:5601/api/saved_objects/_import?compatibilityMode=true" -H "kbn-xsrf: true" --cacert /usr/local/certs/ca/ca.crt --cert /usr/local/certs/es01/es01.crt --key /usr/local/certs/es01/es01.key -u elastic:${ELASTIC_PASSWORD} --form file=@/usr/local/saved.objects/siemids.ndjson
+      '
     environment: 
       - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
     deploy:
