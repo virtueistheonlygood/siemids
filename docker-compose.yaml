@@ -244,6 +244,23 @@ services:
   #   ports:
   #     - "5000:5000"
 
+  #  metricbeat:
+  #    image: docker.elastic.co/beats/metricbeat:${STACK_VERSION}
+  #    user: root
+  #    volumes:
+  #      - /home/skynet/Downloads/github-repos/siemids/resources/metricbeat/metricbeat.yml:/usr/share/metricbeat/metricbeat.yml
+  #      - /home/skynet/Downloads/github-repos/siemids/certs:/usr/share/metricbeat/config/certs/
+  #      - /proc:/hostfs/proc:ro
+  #      - /sys/fs/cgroup:/hostfs/sys/fs/cgroup:ro
+  #      - /:/hostfs:ro
+  #    environment:
+  #      - ELASTICSEARCH_HOSTS=https://es01:9200
+  #      - ELASTICSEARCH_USERNAME=elastic
+  #      - ELASTICSEARCH_PASSWORD=${ELASTIC_PASSWORD}
+  #      - ELASTICSEARCH_SSL_CERTIFICATEAUTHORITIES=/usr/share/metricbeat/config/certs/ca/ca.crt
+  #      - system.hostfs=/hostfs
+  #    command: ["metricbeat", "-e", "-c", "/usr/share/metricbeat/metricbeat.yml"]
+
 volumes:
   es01data:
     driver: local

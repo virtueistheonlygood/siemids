@@ -24,25 +24,10 @@ To install SIEMIDS, follow these steps:
     ```bash
     cd siemids
     ```
-3. Install the required dependencies:
-    ```bash
-    pip install -r requirements.txt
-    ```
 
 ## Configuration
 
-1. Copy the example configuration file and modify it according to your environment:
-    ```bash
-    cp config.example.yaml config.yaml
-    ```
-2. Edit `config.yaml` to set up your data sources, alerting preferences, and other settings.
-
-## Usage
-
-To start the SIEMIDS system, run:
-```bash
-python main.py
-```
+TO_DO
 
 ## Contributing
 

@@ -1,0 +1,23 @@
+metricbeat.modules:
+- module: system
+  metricsets:
+    - cpu
+    - load
+    - memory
+    - network
+    - process
+    - process_summary
+    - uptime
+    - socket_summary
+  enabled: true
+  period: 10s
+  processes: ['.*']
+  cpu.metrics:  ["percentages", "normalized_percentages"]
+  core.metrics: ["percentages"]
+
+output.elasticsearch:
+  hosts: ["https://es01:9200"]
+  username: "${ELASTICSEARCH_USERNAME}"
+  password: "${ELASTICSEARCH_PASSWORD}"
+  ssl:
+    certificate_authorities: "/usr/share/metricbeat/config/certs/ca/ca.crt"
