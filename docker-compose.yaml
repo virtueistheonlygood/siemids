@@ -6,13 +6,18 @@ services:
     volumes:
       - /home/skynet/Downloads/github-repos/siemids/certs:/usr/share/elasticsearch/config/certs
     user: "0"
+    secrets:
+      - elastic_password
+      - kibana_password
     command: >
       bash -c '
+        ELASTIC_PASSWORD=$(cat /run/secrets/elastic_password)
+        KIBANA_PASSWORD=$(cat /run/secrets/kibana_password)
         if [ x${ELASTIC_PASSWORD} == x ]; then
-          echo "Set the ELASTIC_PASSWORD environment variable in the .env file";
+          echo "Set the ELASTIC_PASSWORD secret";
           exit 1;
         elif [ x${KIBANA_PASSWORD} == x ]; then
-          echo "Set the KIBANA_PASSWORD environment variable in the .env file";
+          echo "Set the KIBANA_PASSWORD secret";
           exit 1;
         fi;
         if [ ! -f config/certs/ca.zip ]; then
@@ -52,13 +57,6 @@ services:
           bin/elasticsearch-certutil cert --silent --pem -out config/certs/certs.zip --in config/certs/instances.yml --ca-cert config/certs/ca/ca.crt --ca-key config/certs/ca/ca.key;
           unzip config/certs/certs.zip -d config/certs;
         fi;
-        echo "Setting file permissions"
-        chown -R root:root config/certs;
-        find config/certs -type d -exec chmod 750 {} \;
-        find config/certs -type f -exec chmod 640 {} \;
-        echo "Waiting for Elasticsearch availability";
-        until curl -s --cacert config/certs/ca/ca.crt https://es01:9200 | grep -q "missing authentication credentials"; do sleep 30; done;
-        echo "Setting kibana_system password";
         until curl -s -X POST --cacert config/certs/ca/ca.crt -u "elastic:${ELASTIC_PASSWORD}" -H "Content-Type: application/json" https://es01:9200/_security/user/kibana_system/_password -d "{\"password\":\"${KIBANA_PASSWORD}\"}" | grep -q "^{}"; do sleep 10; done;
         echo "All done!";
       '
@@ -135,6 +133,7 @@ services:
       - /home/skynet/Downloads/github-repos/siemids/certs:/usr/share/kibana/config/certs
       - kibanadata:/usr/share/kibana/data
       - /home/skynet/Downloads/github-repos/siemids/resources/kibana/kibana.yml:/usr/share/kibana/config/kibana.yml
+      - /var/run/secrets:/run/secrets
     ports:
       - ${KIBANA_PORT}:5601
     deploy:
@@ -260,6 +259,11 @@ services:
   #      - ELASTICSEARCH_SSL_CERTIFICATEAUTHORITIES=/usr/share/metricbeat/config/certs/ca/ca.crt
   #      - system.hostfs=/hostfs
   #    command: ["metricbeat", "-e", "-c", "/usr/share/metricbeat/metricbeat.yml"]
+secrets:
+  elastic_password:
+    external: true
+  kibana_password:
+    external: true
 
 volumes:
   es01data:
