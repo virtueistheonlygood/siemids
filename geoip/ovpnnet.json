@@ -1,1 +1,0 @@
-{"ovpnnet_geo": {"status": "success", "country": "Portugal", "countryCode": "PT", "region": "11", "regionName": "Lisbon", "city": "Prior Velho", "zip": "2685-310", "lat": 38.7863, "lon": -9.12377, "timezone": "Europe/Lisbon", "isp": "M247 Europe", "org": "M247 Ltd Lisbon", "as": "AS9009 M247 Europe SRL", "query": "146.70.59.9"}, "ovpnnet_iface": {"tun0": "10.5.19.29"}}

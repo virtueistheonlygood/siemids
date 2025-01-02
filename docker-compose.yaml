@@ -1,18 +1,23 @@
-version: "2.3"
+version: "3.9"
 
 services:
   setup:
     image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION}
     volumes:
-      - $PWD/certs:/usr/share/elasticsearch/config/certs
+      - /home/skynet/Downloads/github-repos/siemids/certs:/usr/share/elasticsearch/config/certs
     user: "0"
+    secrets:
+      - elastic_password
+      - kibana_password
     command: >
       bash -c '
+        ELASTIC_PASSWORD=$(cat /run/secrets/elastic_password)
+        KIBANA_PASSWORD=$(cat /run/secrets/kibana_password)
         if [ x${ELASTIC_PASSWORD} == x ]; then
-          echo "Set the ELASTIC_PASSWORD environment variable in the .env file";
+          echo "Set the ELASTIC_PASSWORD secret";
           exit 1;
         elif [ x${KIBANA_PASSWORD} == x ]; then
-          echo "Set the KIBANA_PASSWORD environment variable in the .env file";
+          echo "Set the KIBANA_PASSWORD secret";
           exit 1;
         fi;
         if [ ! -f config/certs/ca.zip ]; then
@@ -30,18 +35,6 @@ services:
           "      - localhost\n"\
           "    ip:\n"\
           "      - 127.0.0.1\n"\
-          "  - name: es02\n"\
-          "    dns:\n"\
-          "      - es02\n"\
-          "      - localhost\n"\
-          "    ip:\n"\
-          "      - 127.0.0.1\n"\
-          "  - name: es03\n"\
-          "    dns:\n"\
-          "      - es03\n"\
-          "      - localhost\n"\
-          "    ip:\n"\
-          "      - 127.0.0.1\n"\
           "  - name: kibana\n"\
           "    dns:\n"\
           "      - kibana\n"\
@@ -54,17 +47,16 @@ services:
           "      - localhost\n"\
           "    ip:\n"\
           "      - 127.0.0.1\n"\
+          "  - name: logstash\n"\
+          "    dns:\n"\
+          "      - logstash\n"\
+          "      - localhost\n"\
+          "    ip:\n"\
+          "      - 127.0.0.1\n"\
           > config/certs/instances.yml;
           bin/elasticsearch-certutil cert --silent --pem -out config/certs/certs.zip --in config/certs/instances.yml --ca-cert config/certs/ca/ca.crt --ca-key config/certs/ca/ca.key;
           unzip config/certs/certs.zip -d config/certs;
         fi;
-        echo "Setting file permissions"
-        chown -R root:root config/certs;
-        find . -type d -exec chmod 750 \{\} \;;
-        find . -type f -exec chmod 640 \{\} \;;
-        echo "Waiting for Elasticsearch availability";
-        until curl -s --cacert config/certs/ca/ca.crt https://es01:9200 | grep -q "missing authentication credentials"; do sleep 30; done;
-        echo "Setting kibana_system password";
         until curl -s -X POST --cacert config/certs/ca/ca.crt -u "elastic:${ELASTIC_PASSWORD}" -H "Content-Type: application/json" https://es01:9200/_security/user/kibana_system/_password -d "{\"password\":\"${KIBANA_PASSWORD}\"}" | grep -q "^{}"; do sleep 10; done;
         echo "All done!";
       '
@@ -73,18 +65,32 @@ services:
       interval: 1s
       timeout: 5s
       retries: 120
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+        reservations:
+          memory: 512m
 
   es01:
+    restart: always
     depends_on:
       setup:
         condition: service_healthy
     image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION}
     volumes:
-      - $PWD/certs:/usr/share/elasticsearch/config/certs
+      - /home/skynet/Downloads/github-repos/siemids/certs:/usr/share/elasticsearch/config/certs
       - es01data:/usr/share/elasticsearch/data
     ports:
       - ${ES_PORT}:9200
+    deploy:
+      resources:
+        limits:
+          memory: 8g
+        reservations:
+          memory: 6g
     environment:
+      - ES_JAVA_OPTS=-Xms4g -Xmx4g
       - node.name=es01
       - cluster.name=${CLUSTER_NAME}
       - cluster.initial_master_nodes=es01
@@ -103,7 +109,6 @@ services:
       - xpack.security.transport.ssl.certificate_authorities=certs/ca/ca.crt
       - xpack.security.transport.ssl.verification_mode=certificate
       - xpack.license.self_generated.type=${LICENSE}
-    mem_limit: ${MEM_LIMIT}
     ulimits:
       memlock:
         soft: -1
@@ -112,24 +117,33 @@ services:
       test:
         [
           "CMD-SHELL",
-          "curl -s --cacert config/certs/ca/ca.crt https://localhost:9200 | grep -q 'missing authentication credentials'",
+          "curl -s --cacert config/certs/ca/ca.crt https://es01:9200 | grep -q 'missing authentication credentials'",
         ]
       interval: 10s
       timeout: 10s
       retries: 120
 
   kibana:
+    restart: always
     depends_on:
       es01:
         condition: service_healthy
     image: docker.elastic.co/kibana/kibana:${STACK_VERSION}
     volumes:
-      - $PWD/certs:/usr/share/kibana/config/certs
+      - /home/skynet/Downloads/github-repos/siemids/certs:/usr/share/kibana/config/certs
       - kibanadata:/usr/share/kibana/data
-      - $PWD/resources/kibana.yml:/usr/share/kibana/config/kibana.yml
+      - /home/skynet/Downloads/github-repos/siemids/resources/kibana/kibana.yml:/usr/share/kibana/config/kibana.yml
+      - /var/run/secrets:/run/secrets
     ports:
       - ${KIBANA_PORT}:5601
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+        reservations:
+          memory: 2g
     environment:
+      - NODE_OPTIONS=--max-old-space-size=2048
       - SERVERNAME=kibana
       - XPACK_SECURITY_ENABLED=true
       - ELASTICSEARCH_HOSTS=https://es01:9200
@@ -144,7 +158,6 @@ services:
       - xpack.encryptedSavedObjects.encryptionKey="9XeNMpw3EYfxst2XhHE5gj3GRr22k9y59KkYX6DD"
       - xpack.reporting.capture.browser.chromium.disableSandbox=true
       - server.publicBaseUrl=https://siemids:5601
-    mem_limit: ${MEM_LIMIT}
     healthcheck:
       test:
         [
@@ -155,74 +168,102 @@ services:
       timeout: 10s
       retries: 120
 
-  filebeat-raspberrynode1:
-    depends_on:
-     kibana:
-       condition: service_healthy
-    image: docker.elastic.co/beats/filebeat:${STACK_VERSION}
-    user: root
-    network_mode: host
-    volumes:
-      - $PWD/resources/filebeat-raspberrynode1.yml:/usr/share/filebeat/filebeat.yml
-      - $PWD/certs:/usr/share/elasticsearch/config/certs
-      - /var/run/docker.sock:/var/run/docker.sock
-      # This is needed for filebeat to load container log path as specified in filebeat.yml
-      - /var/lib/docker/containers/:/var/lib/docker/containers/:ro
-      # This is needed for filebeat to load logs for system and auth modules
-      - /var/log/:/var/log/:ro
-      # This is needed for filebeat to load logs for auditd module. you might have to install audit system
-      # on ubuntu first (sudo apt-get install -y auditd audispd-plugins)
-      - /var/log/audit/:/var/log/audit/:ro
-    environment:
-      - ELASTICSEARCH_HOSTS=https://es01:9200
-      - ELASTICSEARCH_USERNAME=elastic
-      - ELASTICSEARCH_PASSWORD=${ELASTIC_PASSWORD}
-      - ELASTICSEARCH_SSL_CERTIFICATEAUTHORITIES=config/certs/ca/ca.crt
-
-  filebeat-raspberrysrv:
-    depends_on:
-     kibana:
-       condition: service_healthy
-    image: docker.elastic.co/beats/filebeat:${STACK_VERSION}
-    user: root
-    network_mode: host
-    volumes:
-      - $PWD/resources/filebeat-raspberrysrv.yml:/usr/share/filebeat/filebeat.yml
-      - $PWD/resources/suricata.yml:/usr/share/filebeat/modules.d/suricata.yml
-      - $PWD/env/localnet.env:/usr/share/filebeat/localnet.env
-      - $PWD/env/ovpnnet.env:/usr/share/filebeat/ovpnnet.env
-      - $PWD/env/pianet.env:/usr/share/filebeat/pianet.env
-      - $PWD/certs:/usr/share/elasticsearch/config/certs
-      - /var/run/docker.sock:/var/run/docker.sock
-      - /var/lib/docker/containers/:/var/lib/docker/containers/:ro
-      # This is needed for filebeat to load logs for system and auth modules
-      - /nas/var/log/:/nas/var/log/:ro
-      # This is needed for filebeat to load logs for auditd module. you might have to install audit system
-      # on ubuntu first (sudo apt-get install -y auditd audispd-plugins)
-      - /nas/var/log/audit/:/nas/var/log/audit/:ro
-      - type: bind
-        source: /nas
-        target: /nas
-    env_file:
-      - $PWD/env/localnet.env
-      - $PWD/env/ovpnnet.env
-      - $PWD/env/pianet.env
-    environment:
-      - ELASTICSEARCH_HOSTS=https://es01:9200
-      - ELASTICSEARCH_USERNAME=elastic
-      - ELASTICSEARCH_PASSWORD=${ELASTIC_PASSWORD}
-      - ELASTICSEARCH_SSL_CERTIFICATEAUTHORITIES=config/certs/ca/ca.crt
-
-  elastalert2:
+  setup_kibana:
+    restart: on-failure
     depends_on:
       kibana:
         condition: service_healthy
+    image: docker.io/alpine/curl
     network_mode: host
-    build:
-      context: elastalert/.
-      dockerfile: Dockerfile
+    volumes: 
+      - /home/skynet/Downloads/github-repos/siemids/certs:/usr/local/certs
+      - /home/skynet/Downloads/github-repos/siemids/saved.objects:/usr/local/saved.objects
+    command: >
+      sh -c '
+        until curl -s -I --cacert /usr/local/certs/ca/ca.crt https://localhost:5601 | grep -q "HTTP/1.1 302 Found"; do
+          echo "Waiting for Kibana to be ready...";
+          sleep 10;
+        done;
+        curl -s -X POST "https://localhost:5601/api/saved_objects/_import?compatibilityMode=true" -H "kbn-xsrf: true" --cacert /usr/local/certs/ca/ca.crt --cert /usr/local/certs/es01/es01.crt --key /usr/local/certs/es01/es01.key -u elastic:${ELASTIC_PASSWORD} --form file=@/usr/local/saved.objects/siemids.ndjson
+      '
+    environment: 
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+        reservations:
+          memory: 128m
+
+  filebeat:
+    restart: unless-stopped
+    depends_on:
+      es01:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+        reservations:
+          memory: 256m
+    image: docker.elastic.co/beats/filebeat:${STACK_VERSION}
+    command: ["filebeat", "--environment", "container", "-c", "/usr/share/filebeat/filebeat.yml"]
+    user: root
+#  network_mode: host
+    volumes:
+      - /home/skynet/Downloads/github-repos/siemids/resources/filebeat/filebeat-siemids.yml:/usr/share/filebeat/filebeat.yml
+      - /home/skynet/Downloads/github-repos/siemids/resources/suricata/suricata.yml:/usr/share/filebeat/modules.d/suricata.yml
+      - /home/skynet/Downloads/github-repos/siemids/env/localnet.env:/usr/share/filebeat/localnet.env
+      - /home/skynet/Downloads/github-repos/siemids/env/pianet.env:/usr/share/filebeat/pianet.env
+      - /home/skynet/Downloads/github-repos/siemids/certs:/usr/share/elasticsearch/config/certs
+      # /var/run/podman/podman.sock:/var/run/podman/podman.sock
+      # /var/lib/containers/:/var/lib/containers/:ro
+      # This is needed for filebeat to load logs for system and auth modules
+      - /var/log/:/var/log/:ro
+      - /suricata/:/suricata/:ro
+    env_file:
+      - /home/skynet/Downloads/github-repos/siemids/env/localnet.env
+      - /home/skynet/Downloads/github-repos/siemids/env/pianet.env
     environment:
-      - TZ=UTC
+      - ELASTICSEARCH_HOSTS=https://localhost:9200
+      - ELASTICSEARCH_USERNAME=elastic
+      - ELASTICSEARCH_PASSWORD=${ELASTIC_PASSWORD}
+      - ELASTICSEARCH_SSL_CERTIFICATEAUTHORITIES=config/certs/ca/ca.crt
+
+  # alienvault-flask_api:
+  #   restart: always
+  #   depends_on:
+  #     kibana:
+  #       condition: service_healthy
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #   container_name: alienvault-flask_api
+  #   network_mode: bridge
+  #   ports:
+  #     - "5000:5000"
+
+  #  metricbeat:
+  #    image: docker.elastic.co/beats/metricbeat:${STACK_VERSION}
+  #    user: root
+  #    volumes:
+  #      - /home/skynet/Downloads/github-repos/siemids/resources/metricbeat/metricbeat.yml:/usr/share/metricbeat/metricbeat.yml
+  #      - /home/skynet/Downloads/github-repos/siemids/certs:/usr/share/metricbeat/config/certs/
+  #      - /proc:/hostfs/proc:ro
+  #      - /sys/fs/cgroup:/hostfs/sys/fs/cgroup:ro
+  #      - /:/hostfs:ro
+  #    environment:
+  #      - ELASTICSEARCH_HOSTS=https://es01:9200
+  #      - ELASTICSEARCH_USERNAME=elastic
+  #      - ELASTICSEARCH_PASSWORD=${ELASTIC_PASSWORD}
+  #      - ELASTICSEARCH_SSL_CERTIFICATEAUTHORITIES=/usr/share/metricbeat/config/certs/ca/ca.crt
+  #      - system.hostfs=/hostfs
+  #    command: ["metricbeat", "-e", "-c", "/usr/share/metricbeat/metricbeat.yml"]
+secrets:
+  elastic_password:
+    external: true
+  kibana_password:
+    external: true
 
 volumes:
   es01data:
