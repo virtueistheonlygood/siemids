@@ -23,6 +23,7 @@ To install SIEMIDS, follow these steps:
 2. Navigate to the project directory:
     ```bash
     cd siemids
+    ./start.sh
     ```
 
 ## Configuration
