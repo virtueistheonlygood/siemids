@@ -1,0 +1,284 @@
+version: "3.9"
+
+# Suricata itself is NOT run via this compose file -- compile/install it
+# natively on whichever host actually captures traffic (see the "Configure
+# Suricata" and "Remote Suricata Sensor" sections in README.md). A
+# containerized suricata service (jasonish/suricata:latest) used to be
+# defined here; removed in favor of the native setup this project actually
+# recommends and uses.
+
+services:
+  setup_pki:
+    image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION}
+    volumes:
+      - ./certs:/usr/share/elasticsearch/config/certs
+    user: "0"
+    secrets:
+      - elastic_password
+      - kibana_password
+    command: >
+      bash -c '
+        ELASTIC_PASSWORD=$(cat /run/secrets/elastic_password)
+        KIBANA_PASSWORD=$(cat /run/secrets/kibana_password)
+        if [ x${ELASTIC_PASSWORD} == x ]; then
+          echo "Set the ELASTIC_PASSWORD secret";
+          exit 1;
+        elif [ x${KIBANA_PASSWORD} == x ]; then
+          echo "Set the KIBANA_PASSWORD secret";
+          exit 1;
+        fi;
+        if [ ! -f config/certs/ca.zip ]; then
+          echo "Creating CA";
+          bin/elasticsearch-certutil ca --silent --pem -out config/certs/ca.zip;
+          unzip config/certs/ca.zip -d config/certs;
+        fi;
+        if [ ! -f config/certs/certs.zip ]; then
+          echo "Creating certs";
+          echo -ne \
+          "instances:\n"\
+          "  - name: elasticsearch\n"\
+          "    dns:\n"\
+          "      - elasticsearch\n"\
+          "      - localhost\n"\
+          "    ip:\n"\
+          "      - 127.0.0.1\n"\
+          "      - ${ELK_LAN_IP}\n"\
+          "  - name: kibana\n"\
+          "    dns:\n"\
+          "      - kibana\n"\
+          "      - localhost\n"\
+          "    ip:\n"\
+          "      - 127.0.0.1\n"\
+          "  - name: filebeat\n"\
+          "    dns:\n"\
+          "      - filebeat\n"\
+          "      - localhost\n"\
+          "    ip:\n"\
+          "      - 127.0.0.1\n"\
+          "  - name: logstash\n"\
+          "    dns:\n"\
+          "      - logstash\n"\
+          "      - localhost\n"\
+          "    ip:\n"\
+          "      - 127.0.0.1\n"\
+          > config/certs/instances.yml;
+          bin/elasticsearch-certutil cert --silent --pem -out config/certs/certs.zip --in config/certs/instances.yml --ca-cert config/certs/ca/ca.crt --ca-key config/certs/ca/ca.key;
+          unzip config/certs/certs.zip -d config/certs;
+        fi;
+        until curl -s -X POST --cacert config/certs/ca/ca.crt -u "elastic:${ELASTIC_PASSWORD}" -H "Content-Type: application/json" https://localhost:9200/_security/user/kibana_system/_password -d "{\"password\":\"${KIBANA_PASSWORD}\"}" | grep -q "^{}"; do sleep 10; done;
+        echo "All done!";
+      '
+    healthcheck:
+      test: ["CMD-SHELL", "[ -f config/certs/elasticsearch/elasticsearch.crt ]"]
+      interval: 1s
+      timeout: 5s
+      retries: 120
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+        reservations:
+          memory: 512m
+
+  elasticsearch:
+    restart: always
+    depends_on:
+      setup_pki:
+        condition: service_healthy
+    image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION}
+    volumes:
+      - ./certs:/usr/share/elasticsearch/config/certs
+      - elasticsearchdata:/usr/share/elasticsearch/data
+    ports:
+      - ${ES_PORT}:9200
+    deploy:
+      resources:
+        limits:
+          memory: 6g
+        reservations:
+          memory: 4g
+    environment:
+      - ES_JAVA_OPTS=-Xms4g -Xmx4g
+      - node.name=elasticsearch
+      - cluster.name=${CLUSTER_NAME}
+      - cluster.initial_master_nodes=elasticsearch
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+      - bootstrap.memory_lock=true
+      - xpack.security.enrollment.enabled=true
+      - xpack.security.enabled=true
+      - xpack.security.http.ssl.enabled=true
+      - xpack.security.http.ssl.key=certs/elasticsearch/elasticsearch.key
+      - xpack.security.http.ssl.certificate=certs/elasticsearch/elasticsearch.crt
+      - xpack.security.http.ssl.certificate_authorities=certs/ca/ca.crt
+      - xpack.security.http.ssl.verification_mode=certificate
+      - xpack.security.transport.ssl.enabled=true
+      - xpack.security.transport.ssl.key=certs/elasticsearch/elasticsearch.key
+      - xpack.security.transport.ssl.certificate=certs/elasticsearch/elasticsearch.crt
+      - xpack.security.transport.ssl.certificate_authorities=certs/ca/ca.crt
+      - xpack.security.transport.ssl.verification_mode=certificate
+      - xpack.license.self_generated.type=${LICENSE}
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -s --cacert config/certs/ca/ca.crt https://localhost:9200 | grep -q 'missing authentication credentials'",
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 120
+
+  kibana:
+    restart: always
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    image: docker.elastic.co/kibana/kibana:${STACK_VERSION}
+    volumes:
+      - ./certs:/usr/share/kibana/config/certs
+      - kibanadata:/usr/share/kibana/data
+      - ./resources/kibana/kibana.yml:/usr/share/kibana/config/kibana.yml
+    ports:
+      - ${KIBANA_PORT}:5601
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+        reservations:
+          memory: 2g
+    environment:
+      - NODE_OPTIONS=--max-old-space-size=2048
+      - SERVERNAME=kibana
+      - XPACK_SECURITY_ENABLED=true
+      - ELASTICSEARCH_HOSTS=https://localhost:9200
+      - ELASTICSEARCH_URL=https://localhost:9200
+      - ELASTICSEARCH_USERNAME=kibana_system
+      - ELASTICSEARCH_PASSWORD=${KIBANA_PASSWORD}
+      - ELASTICSEARCH_SSL_CERTIFICATEAUTHORITIES=config/certs/ca/ca.crt
+      - ELASTICSEARCH_SSL_VERIFICATIONMODE=certificate
+      - SERVER_SSL_ENABLED=true
+      - SERVER_SSL_KEY=config/certs/kibana/kibana.key
+      - SERVER_SSL_CERTIFICATE=config/certs/kibana/kibana.crt
+      - XPACK_SECURITY_ENCRYPTIONKEY=${KIBANA_ENCRYPTION_KEY}
+      - XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY=${KIBANA_ENCRYPTION_KEY}
+      - XPACK_REPORTING_ENCRYPTIONKEY=${KIBANA_ENCRYPTION_KEY}
+      - xpack.reporting.capture.browser.chromium.disableSandbox=true
+      - server.publicBaseUrl=https://siemids:5601
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -s -I --cacert config/certs/ca/ca.crt https://localhost:5601 | grep -q 'HTTP/1.1 302 Found'",
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 120
+
+  setup_kibana:
+    restart: on-failure
+    depends_on:
+      kibana:
+        condition: service_healthy
+    image: docker.io/alpine/curl
+    network_mode: host
+    volumes: 
+      - ./certs:/usr/local/certs
+      - ./saved.objects:/usr/local/saved.objects
+    command: >
+      sh -c '
+        until curl -s -I --cacert /usr/local/certs/ca/ca.crt https://localhost:5601 | grep -q "HTTP/1.1 302 Found"; do
+          echo "Waiting for Kibana to be ready...";
+          sleep 10;
+        done;
+        curl -s -X POST "https://localhost:5601/api/saved_objects/_import?compatibilityMode=true" -H "kbn-xsrf: true" --cacert /usr/local/certs/ca/ca.crt --cert /usr/local/certs/elasticsearch/elasticsearch.crt --key /usr/local/certs/elasticsearch/elasticsearch.key -u elastic:${ELASTIC_PASSWORD} --form file=@/usr/local/saved.objects/siemids.ndjson
+      '
+    environment: 
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+        reservations:
+          memory: 128m
+
+  filebeat:
+    restart: unless-stopped
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+        reservations:
+          memory: 256m
+    image: docker.elastic.co/beats/filebeat:${STACK_VERSION}
+    command: ["filebeat", "--environment", "container", "-c", "/usr/share/filebeat/filebeat.yml"]
+    user: root
+    # Podman merges the host's /etc/hosts into rootful containers by default,
+    # which leaks the host's own hostname entry alongside the container's own
+    # -- go-sysinfo's hostname resolution then flip-flops between the two
+    # across lookups (same process, no restart), producing inconsistent
+    # host.hostname values. Pinning it explicitly removes the ambiguity.
+    hostname: skynetpi
+    volumes:
+      - ./resources/filebeat/filebeat-skynetpi.yml:/usr/share/filebeat/filebeat.yml
+      - ./certs:/usr/share/elasticsearch/config/certs
+      # This is needed for filebeat to load logs for system and auth modules
+      - /var/log/:/var/log/:ro
+    environment:
+      - ELASTICSEARCH_HOSTS=https://localhost:9200
+      - ELASTICSEARCH_USERNAME=elastic
+      - ELASTICSEARCH_PASSWORD=${ELASTIC_PASSWORD}
+      - ELASTICSEARCH_SSL_CERTIFICATEAUTHORITIES=config/certs/ca/ca.crt
+
+  #  siemids_otx_api:
+  #    restart: always
+  #    depends_on:
+  #      kibana:
+  #        condition: service_healthy
+  #    deploy:
+  #      resources:
+  #        limits:
+  #          memory: 512m
+  #        reservations:
+  #          memory: 256m
+  #    build:
+  #      context: .
+  #      dockerfile: Containerfile
+  #    container_name: siemids_otx_api
+  ##    network_mode: bridge
+  #    ports:
+  #      - "5000:5000"
+
+  #  metricbeat:
+  #    image: docker.elastic.co/beats/metricbeat:${STACK_VERSION}
+  #    user: root
+  #    volumes:
+  #      - /siemids/resources/metricbeat/metricbeat.yml:/usr/share/metricbeat/metricbeat.yml
+  #      - /siemids/certs:/usr/share/metricbeat/config/certs/
+  #      - /proc:/hostfs/proc:ro
+  #      - /sys/fs/cgroup:/hostfs/sys/fs/cgroup:ro
+  #      - /:/hostfs:ro
+  #    environment:
+  #      - ELASTICSEARCH_HOSTS=https://localhost:9200
+  #      - ELASTICSEARCH_USERNAME=elastic
+  #      - ELASTICSEARCH_PASSWORD=${ELASTIC_PASSWORD}
+  #      - ELASTICSEARCH_SSL_CERTIFICATEAUTHORITIES=/usr/share/metricbeat/config/certs/ca/ca.crt
+  #      - system.hostfs=/hostfs
+  #    command: ["metricbeat", "-e", "-c", "/usr/share/metricbeat/metricbeat.yml"]
+
+secrets:
+  elastic_password:
+    external: true
+  kibana_password:
+    external: true
+
+volumes:
+  elasticsearchdata:
+    driver: local
+  kibanadata:
+    driver: local

@@ -1,0 +1,35 @@
+# Default Kibana configuration for container target
+server.host: "0.0.0.0"
+server.shutdownTimeout: "5s"
+elasticsearch.hosts: [ "https://localhost:9200" ]
+monitoring.ui.container.elasticsearch.enabled: true
+#xpack.reporting.capture.browser.chromium.disableSandbox: true
+server.publicBaseUrl: https://siemids:5601
+xpack.reporting.kibanaServer.hostname: "localhost"
+# The three encryptionKey settings (security, encryptedSavedObjects,
+# reporting) are intentionally NOT set here -- a prior version of this file
+# hardcoded the same real key across all three, which got committed to git.
+# They're injected as environment variables instead (KIBANA_ENCRYPTION_KEY
+# in .env, wired to XPACK_SECURITY_ENCRYPTIONKEY /
+# XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY / XPACK_REPORTING_ENCRYPTIONKEY
+# in podman-compose*.yaml) so the real value never lands in a tracked file.
+# Kibana's docker entrypoint auto-converts SCREAMING_SNAKE_CASE env vars into
+# the equivalent dotted kibana.yml key.
+uiSettings:
+  overrides:
+    "theme:darkMode": true
+telemetry.optIn: false
+
+# Tried disabling unused solution plugins (ML, Fleet, Security Solution,
+# Canvas, SLO, etc.) via xpack.<name>.enabled: false to reduce the ~35+
+# mostly-empty system indices and background tasks they create regardless of
+# use. Reverted: as of 8.17.4, none of these still expose a top-level
+# `enabled` toggle (confirmed by pulling each plugin's server/config.js out
+# of the Kibana image -- e.g. ml-plugin/server/config_schema.js has no root
+# `enabled` key at all, only nested ones like `ad.enabled`/`dfa.enabled`;
+# fleet-plugin/server/config.js likewise only has `agents.enabled`/
+# `agentless.enabled`, not a root toggle). Setting any of the old top-level
+# keys causes Kibana to FATAL on startup ("a value wasn't expected to be
+# present" / "definition for this key is missing") and crash-loop. This is a
+# real removal in recent Kibana versions (unified solution navigation), not
+# a config mistake -- see DEPLOYMENT.md for the full investigation.

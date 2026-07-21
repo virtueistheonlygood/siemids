@@ -1,0 +1,4 @@
+- module: suricata
+  eve:
+    enabled: true
+    var.paths: ["/suricata/eve.json"]

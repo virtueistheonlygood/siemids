@@ -1,0 +1,395 @@
+hostname: "raspberrysrv"
+agent.hostname: "filebeat-raspberrysrv"
+name: "raspberrysrv"
+tags: ["siemids", "suricata", "raspberrysrv", "adguard", "auditd"]
+
+filebeat.config.inputs:
+  enabled: true
+  reload.enabled: true
+  reload.period: 10s
+  env:
+    - localnet.env
+    - vpnet.env
+    - piavpn.env
+
+# AdGuard Home's query log is newline-delimited JSON -- parse it directly
+# rather than via a filebeat module (AdGuard has none). Tagged as its own
+# "adguard.log" dataset since its field shape doesn't match pihole.log; the
+# existing DNS Dashboard saved search would need its query extended to
+# include this dataset too.
+filebeat.inputs:
+  - type: filestream
+    id: adguard-querylog
+    enabled: true
+    paths:
+      - /adguard/querylog.json
+    parsers:
+      - ndjson:
+          target: ""
+          overwrite_keys: true
+          add_error_key: true
+    fields:
+      event.dataset: adguard.log
+    fields_under_root: true
+
+#============================= Filebeat modules ===============================
+
+filebeat.config.modules:
+  # Glob pattern for configuration loading
+  path: ${path.config}/modules.d/*.yml
+
+  # Set to true to enable config reloading
+  reload.enabled: true
+
+  # Period on which files under path should be checked for changes
+  reload.period: 120s
+
+# suricata module ships Suricata's eve.json from this host (see modules.d/).
+# auditd/system modules below mirror the ELK host's own OS log collection,
+# but for this host's OS (Pi's own audit.log/syslog/auth.log), since the
+# Pi's syslog/auth/audit events are not the ELK host's.
+filebeat.modules:
+  - module: auditd
+    log:
+      enabled: true
+      var.paths: ["/var/log/audit/audit.log*"]
+  - module: system
+    syslog:
+      enabled: true
+      var.paths: ["/var/log/syslog*"]
+    auth:
+      enabled: true
+      var.paths: ["/var/log/auth.log*"]
+
+# ======================= Elasticsearch template setting =======================
+
+# Single-node cluster (skynetpi) -- number_of_replicas: 1 meant 3 replica
+# shards could never be assigned (no second node to host them), permanently
+# stuck "yellow" and adding pure allocation-retry overhead for nothing.
+# number_of_shards: 3 was also drastically oversized for this deployment's
+# actual volume (~50MB/day) on a 4-core Pi; Elastic's own general guidance
+# targets 10-50GB *per shard*, not splitting something this small 3 ways --
+# each shard carries fixed overhead (translog, merge scheduler, segment
+# readers) that adds up on a 3.7GB host already tight on memory. Confirmed
+# Elasticsearch pinned at ~99% of its container memory limit in steady state
+# before this; see DEPLOYMENT.md. refresh_interval widened from the 1s
+# default since sub-second search freshness isn't needed for a SIEM/log use
+# case, trading it for less merge/I/O overhead on the SD card.
+# Filebeat only pushes its index template once and never touches it again if
+# one by that name already exists -- confirmed the above settings silently
+# had zero effect until the template was overwritten directly via the ES API
+# (PUT _index_template/filebeat-8.17.4). overwrite: true makes future
+# settings changes here actually take effect on the next filebeat restart.
+setup.template.overwrite: true
+setup.template.settings:
+  index.number_of_shards: 1
+  index.number_of_replicas: 0
+  index.refresh_interval: 30s
+
+# ================================= Processors =================================
+processors:
+  - add_host_metadata:
+      when.not.contains.tags: forwarded
+  - add_cloud_metadata: ~
+  - add_kubernetes_metadata: ~
+  # add_host_metadata's hostname resolution is unreliable in this container
+  # setup (Podman leaks the host's own /etc/hosts entry alongside the
+  # container's, so go-sysinfo flip-flops between the two, and sometimes the
+  # container ID, across lookups within the same process). Force a
+  # deterministic value instead of trusting it.
+  - add_fields:
+      target: 'host'
+      fields:
+        hostname: 'raspberrysrv'
+        name: 'raspberrysrv'
+
+###
+### AdGuard Home query log field mapping
+### (raw fields: T=timestamp, QH=query host, QT=query type, IP=client IP,
+### Upstream=resolver used, Result.IsFiltered=whether the query was blocked)
+###
+
+  - timestamp:
+      when:
+        has_fields: ["T"]
+      field: "T"
+      layouts:
+        - "2006-01-02T15:04:05.999999999Z07:00"
+      test:
+        - "2026-07-18T02:56:40.405985905+01:00"
+  - rename:
+      when:
+        has_fields: ["IP"]
+      fields:
+        - from: "IP"
+          to: "source.ip"
+      ignore_missing: true
+  - rename:
+      when:
+        has_fields: ["QH"]
+      fields:
+        - from: "QH"
+          to: "dns.question.name"
+        - from: "QT"
+          to: "dns.question.type"
+      ignore_missing: true
+  - if:
+      has_fields: ["Result"]
+    then:
+      - if:
+          equals:
+            Result.IsFiltered: true
+        then:
+          - add_fields:
+              target: ""
+              fields:
+                event.outcome: "failure"
+                event.action: "blocked"
+        else:
+          - add_fields:
+              target: ""
+              fields:
+                event.outcome: "success"
+                event.action: "allowed"
+
+###
+### Local Networks
+###
+### Two bugs fixed here vs. the original version of this config:
+### 1. The suricata module's own input processors convert source.ip/
+###    destination.ip to native IP-typed fields (config/eve.yml: `convert
+###    ... type: ip`), not plain strings. Beats' `contains` condition is
+###    string-only and silently never matches typed IP fields. `network` is
+###    the condition built for this: it evaluates CIDR membership correctly
+###    against IP-typed fields.
+### 2. `target: 'source.geo'` (a dotted string) does NOT nest fields under
+###    source.geo -- it creates a separate top-level field literally named
+###    "source.geo" (with a period in the name), which silently fails to
+###    index/appear once "source" is already mapped as an object elsewhere
+###    (confirmed by isolated testing: target must be the plain namespace,
+###    e.g. 'source', with the nested key given in `fields:` instead).
+###
+### Covers all three physically-local ranges: the wlan0/wlan1 client APs
+### (10.10.10.0/24, 10.1.1.0/24) and the eth0 LAN (192.168.100.0/24, where
+### raspberrysrv/skynetpi/AdGuard/the router itself all live) -- the goal is
+### identifying where a connection actually originates, not just AP clients.
+### 192.168.1.0/24 (present in the original version of this file) was
+### removed -- it isn't a real subnet anywhere in this deployment.
+
+  - add_fields:
+      when:
+        network:
+          source.ip: ['10.1.1.0/24', '10.10.10.0/24', '192.168.100.0/24']
+      target: 'source'
+      fields:
+        geo:
+          location: POINT (${localnet_geo_LON} ${localnet_geo_LAT})
+          country_name: '${localnet_geo_COUNTRY}'
+          country_iso_code: '${localnet_geo_COUNTRYCODE}'
+          region_iso_code: '${localnet_geo_REGION}'
+          continent_name: '${localnet_geo_TIMEZONE}'
+          region_name: '${localnet_geo_REGIONNAME}'
+          city_name: '${localnet_geo_CITY}'
+        as:
+          organization:
+            name: '${localnet_geo_ORG}'
+
+  - add_fields:
+      when:
+        network:
+          destination.ip: ['10.1.1.0/24', '10.10.10.0/24', '192.168.100.0/24']
+      target: 'destination'
+      fields:
+        geo:
+          location: POINT (${localnet_geo_LON} ${localnet_geo_LAT})
+          country_name: '${localnet_geo_COUNTRY}'
+          country_iso_code: '${localnet_geo_COUNTRYCODE}'
+          region_iso_code: '${localnet_geo_REGION}'
+          continent_name: '${localnet_geo_TIMEZONE}'
+          region_name: '${localnet_geo_REGIONNAME}'
+          city_name: '${localnet_geo_CITY}'
+        as:
+          organization:
+            name: '${localnet_geo_ORG}'
+
+###
+### WireGuard
+###
+
+  - add_fields:
+      when:
+        network:
+          source.ip: ['${vpnet_iface_WG0}/32']
+      target: 'source'
+      fields:
+        geo:
+          location: POINT (${vpnet_geo_LON} ${vpnet_geo_LAT})
+          country_name: '${vpnet_geo_COUNTRY}'
+          country_iso_code: '${vpnet_geo_COUNTRYCODE}'
+          region_iso_code: '${vpnet_geo_REGION}'
+          continent_name: '${vpnet_geo_TIMEZONE}'
+          region_name: '${vpnet_geo_REGIONNAME}'
+          city_name: '${vpnet_geo_CITY}'
+        as:
+          organization:
+            name: '${vpnet_geo_ORG}'
+
+  - add_fields:
+      when:
+        network:
+          destination.ip: ['${vpnet_iface_WG0}/32']
+      target: 'destination'
+      fields:
+        geo:
+          location: POINT (${vpnet_geo_LON} ${vpnet_geo_LAT})
+          country_name: '${vpnet_geo_COUNTRY}'
+          country_iso_code: '${vpnet_geo_COUNTRYCODE}'
+          region_iso_code: '${vpnet_geo_REGION}'
+          continent_name: '${vpnet_geo_TIMEZONE}'
+          region_name: '${vpnet_geo_REGIONNAME}'
+          city_name: '${vpnet_geo_CITY}'
+        as:
+          organization:
+            name: '${vpnet_geo_ORG}'
+
+###
+### PIA VPN
+###
+
+  - add_fields:
+      when:
+        network:
+          source.ip: ['${piavpn_iface_PIA}/32']
+      target: 'source'
+      fields:
+        geo:
+          location: POINT (${piavpn_geo_LON} ${piavpn_geo_LAT})
+          country_name: '${piavpn_geo_COUNTRY}'
+          country_iso_code: '${piavpn_geo_COUNTRYCODE}'
+          region_iso_code: '${piavpn_geo_REGION}'
+          continent_name: '${piavpn_geo_TIMEZONE}'
+          region_name: '${piavpn_geo_REGIONNAME}'
+          city_name: '${piavpn_geo_CITY}'
+        as:
+          organization:
+            name: '${piavpn_geo_ORG}'
+
+  - add_fields:
+      when:
+        network:
+          destination.ip: ['${piavpn_iface_PIA}/32']
+      target: 'destination'
+      fields:
+        geo:
+          location: POINT (${piavpn_geo_LON} ${piavpn_geo_LAT})
+          country_name: '${piavpn_geo_COUNTRY}'
+          country_iso_code: '${piavpn_geo_COUNTRYCODE}'
+          region_iso_code: '${piavpn_geo_REGION}'
+          continent_name: '${piavpn_geo_TIMEZONE}'
+          region_name: '${piavpn_geo_REGIONNAME}'
+          city_name: '${piavpn_geo_CITY}'
+        as:
+          organization:
+            name: '${piavpn_geo_ORG}'
+
+###
+### VPN Hop (synthetic local -> VPN-exit leg, for a second Traffic Flow Map layer)
+###
+### Kibana Maps' point-to-point layer draws a line between exactly one source
+### and one destination per document -- it can't show a true 3-point path
+### (real client -> VPN exit -> real destination) from a single flow record,
+### since destination.ip on a captured packet is always the actual target,
+### never the VPN's own address (only the source gets NAT-rewritten in
+### transit). This synthesizes the missing "local -> VPN exit" leg as its
+### own field pair (vpn_hop.source/destination), so a second map layer can
+### draw it alongside the existing "VPN exit -> destination" leg, which
+### already exists as-is via the wg0-captured events above.
+###
+### Applied by policy, not verified per-packet -- a single eth0 capture
+### can't tell whether a given flow will end up exiting via wg0 or the
+### normal router, since that's a routing decision made downstream of this
+### capture point. wlan0/wlan1 clients are unconditionally VPN-routed (see
+### the existing `-i wlan0/wlan1 -o wg0 -j ACCEPT` iptables rules);
+### 192.168.100.10 is an explicit gateway-override host (DEPLOYMENT.md).
+### Add further eth0-sourced IPs here if more hosts are pointed at
+### raspberrysrv as their gateway.
+
+  - add_fields:
+      when:
+        or:
+          - network:
+              source.ip: ['10.10.10.0/24', '10.1.1.0/24']
+          - network:
+              source.ip: ['192.168.100.10/32']
+      target: 'vpn_hop'
+      fields:
+        source:
+          geo:
+            location: POINT (${localnet_geo_LON} ${localnet_geo_LAT})
+        destination:
+          geo:
+            location: POINT (${vpnet_geo_LON} ${vpnet_geo_LAT})
+
+###
+### PIA DNS Hop (synthetic local -> PIA DNS upstream leg, for a third map layer)
+###
+### Same idea as vpn_hop above, but for local clients' DNS queries that are
+### actually answered via the PIA-routed resolver (see the DNS PIA UPSTREAM
+### block below) rather than AdGuard. Matches when a local-network source is
+### talking to the PIA DNS path specifically (dnsmasq_pia/macvlan-pia
+### 192.168.100.200, or its upstream 10.0.0.243) -- both conditions together
+### identify "a local client's DNS query, routed over PIA" specifically,
+### distinct from ordinary local<->local traffic or non-DNS PIA-tunnel
+### traffic.
+
+  - add_fields:
+      when:
+        and:
+          - network:
+              source.ip: ['10.1.1.0/24', '10.10.10.0/24', '192.168.100.0/24']
+          - network:
+              destination.ip: ['192.168.100.200/32', '10.0.0.243/32']
+      target: 'pia_dns_hop'
+      fields:
+        source:
+          geo:
+            location: POINT (${localnet_geo_LON} ${localnet_geo_LAT})
+        destination:
+          geo:
+            location: POINT (${piavpn_geo_LON} ${piavpn_geo_LAT})
+
+###
+### DNS PIA UPSTREAM
+###
+### dnsmasq_pia (macvlan-pia, 192.168.100.200) forwards queries out through
+### the pia tunnel interface specifically (see /etc/dnsmasq_pia.conf:
+### `server=10.0.0.243@pia`) -- these are the two IPs actually involved in
+### that PIA-routed DNS path. AdGuard (192.168.100.211) is a separate,
+### unrelated local resolver using Quad9, not PIA.
+
+  - add_fields:
+      when:
+        network:
+          destination.ip: ['192.168.100.200/32', '10.0.0.243/32']
+      target: 'destination'
+      fields:
+        geo:
+          location: POINT (${piavpn_geo_LON} ${piavpn_geo_LAT})
+          country_name: '${piavpn_geo_COUNTRY}'
+          country_iso_code: '${piavpn_geo_COUNTRYCODE}'
+          region_iso_code: '${piavpn_geo_REGION}'
+          continent_name: '${piavpn_geo_TIMEZONE}'
+          region_name: '${piavpn_geo_REGIONNAME}'
+          city_name: '${piavpn_geo_CITY}'
+        as:
+          organization:
+            name: '${piavpn_geo_ORG}'
+
+output.elasticsearch:
+  hosts: ["${ELASTICSEARCH_HOSTS}"]
+  username: elastic
+  password: '${ELASTICSEARCH_PASSWORD}'
+  ssl:
+    certificate_authorities: "/usr/share/elasticsearch/config/certs/ca/ca.crt"
+    certificate: "/usr/share/elasticsearch/config/certs/filebeat/filebeat.crt"
+    key: "/usr/share/elasticsearch/config/certs/filebeat/filebeat.key"
