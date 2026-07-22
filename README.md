@@ -1,8 +1,6 @@
 # Open Source 👁 SIEM-IDS Solution
 
-This project is designed for users seeking to monitor and analyze network infrastructure activity, enhance privacy controls, or address complex security challenges. It supports scalable deployment, enabling configurations as an Intrusion Detection System (IDS) or an Intrusion Prevention System (IPS). The integrated Security Information and Event Management (SIEM) system provides centralized log aggregation, real-time event correlation, and in-depth historical analysis. The IDS leverages rule-based and signature-based detection mechanisms to identify potential threats or anomalous events, facilitating proactive threat management.
-
-**SIEM-IDS integrates open source tools to monitor, analyze, correlate, and alert on network traffic, systems, applications, and security events in real-time. It offers detailed visualizations of every activity, providing actionable insights into your privacy and security posture.**
+**SIEM-IDS integrates open source tools to monitor, analyze, correlate, and alert on network traffic, systems, applications, and security events in real-time.** It combines Suricata's rule-/signature-based Intrusion Detection (IDS) with the Elastic Stack's centralized log aggregation, real-time correlation, and historical analysis -- giving actionable visibility into your network's privacy and security posture.
 
 > *Disclaimer: This is currently in development and is safe to run in a staging environment or as a demo. However, it is not recommended for production use due to incomplete features, such as partial integration with the OTX API | Threat Intelligence feature.*
 
@@ -66,11 +64,7 @@ This project requires Podman and podman-compose to run.
 
 ## Configure Suricata
 
-Suricata requires a tailored configuration to work correctly on your infrastructure, whether running as an IDS or IPS. Ensure that the configuration paths align with your installation. **This project runs Suricata natively, not as a container, and always on Device B** (the sensor) -- see [Device B: Suricata Sensor](#device-b-suricata-sensor-eg-a-raspberry-pi-router) for the full deployment steps; this section covers the config file itself.
-
-- **We strongly recommend compiling and running Suricata on your host by customizing the configuration based on your network topology and monitoring needs**. For reference, use the stock sample configuration file `resources/suricata/suricata.yaml`, or `resources/suricata/suricata-raspberrysrv.yaml` for a fully populated, real-world multi-interface example (see [Device B: Suricata Sensor](#device-b-suricata-sensor-eg-a-raspberry-pi-router)).
-
-You can follow the instructions in the [Suricata documentation](https://suricata.readthedocs.io/en/latest/install.html) to compile and install it on your system.
+**This project runs Suricata natively, not as a container, and always on Device B** (the sensor) -- see [Device B: Suricata Sensor](#device-b-suricata-sensor-eg-a-raspberry-pi-router) for the full deployment steps; this section covers the config file itself. Install it per the [Suricata documentation](https://suricata.readthedocs.io/en/latest/install.html), then tailor the config to your topology -- start from the stock sample `resources/suricata/suricata.yaml`, or `resources/suricata/suricata-raspberrysrv.yaml` for a fully populated, real-world multi-interface example.
 
 Key configuration aspects include:
 
@@ -137,7 +131,7 @@ The `podman-compose.yaml` file orchestrates the deployment of the various servic
 
 ### Podman Container Security
 
-Communication between the containerized services (Elasticsearch, Filebeat, and Kibana) is secured using HTTPS/SSL, with a Public Key Infrastructure (PKI) implemented by the 'setup_pki' service. PKI employs a pair of cryptographic keys (public and private) to authenticate the entities involved and encrypt data in transit, ensuring that sensitive information is securely transmitted and accessible only to authorized parties.
+Communication between the containerized services (Elasticsearch, Filebeat, and Kibana) is secured using HTTPS/SSL, with a PKI generated on first run by the `setup_pki` service.
   ```yaml
   setup_pki:
     image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION}
@@ -166,16 +160,7 @@ step needed. This is done by a dedicated one-shot service, `setup_kibana`, which
    step 2/3 actually failed -- a normal successful import doesn't loop or reimport on
    every subsequent `start.sh` run.
 
-  ```yaml
-      command: >
-      sh -c '
-        until curl -s -I --cacert /usr/local/certs/ca/ca.crt https://localhost:5601 | grep -q "HTTP/1.1 302 Found"; do
-          echo "Waiting for Kibana to be ready...";
-          sleep 10;
-        done;
-        curl -s -X POST "https://localhost:5601/api/saved_objects/_import?compatibilityMode=true" -H "kbn-xsrf: true" --cacert /usr/local/certs/ca/ca.crt --cert /usr/local/certs/elasticsearch/elasticsearch.crt --key /usr/local/certs/elasticsearch/elasticsearch.key -u elastic:${ELASTIC_PASSWORD} --form file=@/usr/local/saved.objects/siemids.ndjson
-      '
-  ```
+  (see the `setup_kibana` service in `podman-compose.yaml` for the exact commands)
 
 - **Configuration files are located in `resources/` directory**
 
@@ -207,22 +192,15 @@ its [MITRE ATT&CK](https://attack.mitre.org/) tactic/technique.
 | **Command and control** | AdGuard blocked-query spike from one client (beaconing indicator), Cobalt Strike's default team-server TLS certificate, **Suricata IoC feed match** (`siemids-suricata-ioc-feed-match` -- fires specifically on Feodo Tracker/SSLBL indicator hits, high severity, separate from the generic Suricata rule below since a confirmed-bad indicator match deserves different priority than a heuristic signature match) |
 | **Network (Suricata)** | Any real Suricata alert signature (tuned to exclude two known decoder-noise signatures), potential outbound SSH scans (tuned to exclude this project's own admin/automation hosts) |
 
-Several of the custom rules are explicitly tuned against noise this deployment actually
-generates -- e.g. the firewall-change rule excludes routine Podman container networking
-churn, and the `sudo`-interactive-shell rule excludes `start.sh`'s own `sudo sh -x
-scripts/prune.sh` invocation -- reflecting real false-positive rates rather than a
-theoretical rule set. **These are a starting point, not exhaustive**: review them against
-your own log sources and threat model, retune or remove the noise-exclusions that were
-specific to the original deployment, and add rules for anything specific to your
-environment.
+Several of the custom rules are tuned against noise this deployment actually generates
+(e.g. the firewall-change rule excludes routine Podman/netavark churn). **These are a
+starting point, not exhaustive**: review them against your own log sources and threat
+model, retune the noise-exclusions, and add rules for your environment.
 
 Unlike dashboards, rules are **not** auto-imported by any compose service -- the
-Detection Engine is a separate API namespace from Saved Objects
-(`/api/detection_engine/rules/_import`, not `/api/saved_objects/_import`), and its
-backing indices only initialize once the Security app has been opened at least once (or
-an API call like this one triggers it), so wiring it into the same startup dependency
-chain as `setup_kibana` would race against that initialization. Import them yourself,
-once, after Kibana is up:
+Detection Engine's backing indices only initialize once the Security app has been
+opened at least once, which would race against `setup_kibana`'s startup-time import.
+Import them yourself, once, after Kibana is up:
 
   ```bash
   curl -sk -u elastic:<ELASTIC_PASSWORD> -X POST \
@@ -255,24 +233,10 @@ regenerating them. Use the `ELASTIC_PASSWORD` to log in at https://localhost:560
 
 **`.env` is git-ignored precisely because of this** -- it holds real, live secrets once
 `start.sh` has run. Never `git add -f .env`, and never hardcode any of these three
-values into a tracked file (an earlier version of this project leaked several password
-generations and a Kibana encryption key into git history this way).
-  ```yaml
-    secrets:
-      - elastic_password
-      - kibana_password
-    command: >
-      bash -c '
-        ELASTIC_PASSWORD=$(cat /run/secrets/elastic_password)
-        KIBANA_PASSWORD=$(cat /run/secrets/kibana_password)
-        if [ x${ELASTIC_PASSWORD} == x ]; then
-          echo "Set the ELASTIC_PASSWORD secret";
-          exit 1;
-        elif [ x${KIBANA_PASSWORD} == x ]; then
-          echo "Set the KIBANA_PASSWORD secret";
-          exit 1;
-        fi;
-  ```
+values into a tracked file (an earlier version leaked a password/encryption-key
+generation into git history this way). The passwords are also stored as Podman secrets
+(`elastic_password`/`kibana_password`, consumed by `setup_pki`) -- see `start.sh` for
+the exact generation/storage logic.
 
 ### Filebeat Log Collection and Enrichment
 
@@ -337,8 +301,8 @@ already exist.
 
 1. Build a `suricata.yaml` for the sensor host from `resources/suricata/suricata.yaml` (the stock sample) or `resources/suricata/suricata-raspberrysrv.yaml` (a concrete, fully populated multi-interface example), replacing the `af-packet` interface names with the sensor's real interfaces (its AP/LAN and VPN egress interfaces -- not its WAN uplink, unless you want that monitored too), keeping `default-log-dir: /suricata/`.
 2. Enable/start it as a native systemd service (`suricata.service`, shipped by the distro package) -- see [Configure Suricata](#configure-suricata). Then run `scripts/suricata-update-timer-install.sh`, which:
-   - Enables `et/open` (Emerging Threats Open, ~40k signatures) plus four free IoC feeds via `suricata-update enable-source`: `abuse.ch/feodotracker` (active botnet C2 IPs), `abuse.ch/sslbl-blacklist`/`sslbl-ja3` (malicious TLS certs and JA3 fingerprints, mostly C2 traffic, CC0-licensed), and `etnetera/aggressive` (an IP blacklist, MIT-licensed) -- together only a few hundred to ~10k lightweight, single-content-match rules, small next to `et/open`. **Enabling a source is a one-time, additive action** -- `suricata-update` with zero enabled sources does *not* fall back to `et/open`; it only refreshes Suricata's own bundled protocol/anomaly event rules (`dns-events.rules` etc.), which aren't threat signatures at all. Skipping this step silently leaves the sensor with no real ruleset. (`abuse.ch/sslbl-c2` is deliberately skipped -- abuse.ch deprecated it in 2025, it's zero rules now.)
-   - Pulls the rules immediately, then installs the daily-refresh systemd timer (`resources/suricata/suricata-update.service`/`.timer`), scheduled for `05:00 UTC` (`OnCalendar=*-*-* 05:00:00`, plus up to a 30-minute randomized delay). **The timer live-reloads Suricata's rules with no capture gap** -- `suricata-update` auto-detects the running instance via its `unix-command` socket and triggers a reload itself after a successful test.
+   - Enables `et/open` (Emerging Threats Open, ~40k signatures) plus four free IoC feeds via `suricata-update enable-source`: `abuse.ch/feodotracker` (botnet C2 IPs), `abuse.ch/sslbl-blacklist`/`sslbl-ja3` (malicious TLS certs/JA3 fingerprints), and `etnetera/aggressive` (IP blacklist) -- together only a few hundred to ~10k lightweight rules, small next to `et/open`. **Enabling a source is one-time and additive** -- with zero sources enabled, `suricata-update` does *not* fall back to `et/open`, so skipping this step silently leaves the sensor with no real ruleset.
+   - Pulls the rules immediately, then installs a daily-refresh systemd timer (`resources/suricata/suricata-update.service`/`.timer`, `05:00 UTC` + up to 30min random delay) that **live-reloads Suricata with no capture gap** via its `unix-command` socket.
 3. Run `scripts/interfaces.py` **on the sensor host** first -- it generates the `geoip/*.json` and `env/*.env` files Device B's Filebeat geo-enrichment processors read from. Edit it to set `localnet_1`/`vpnet_1` (and `piavpn_1`, if the sensor has a second VPN egress like a PIA tunnel) to that host's actual interfaces:
 
   ```python
@@ -361,18 +325,14 @@ already exist.
    variable. *Naming the interfaces themselves is still a one-time manual step; keeping
    their enrichment current afterward is automated -- see below.*
 
-   **Keeping this current automatically**: any of these interfaces' IPs can change on
-   their own after initial setup -- the WAN IP on an ISP DHCP lease renewal, `wg0`'s
-   tunnel IP whenever `simple-pia-wg`-style tooling regenerates it against a new PIA
-   server, `pia`'s tunnel IP on an OpenVPN reconnect. Since Filebeat only reads
-   `env/*.env` at container creation (a plain restart does **not** reload them -- see the
-   Gotcha below), stale enrichment silently persists until someone notices and manually
-   re-runs `interfaces.py` plus redeploys Filebeat. `scripts/refresh-filebeat-enrichment.sh`
-   automates this: re-run `interfaces.py`, diff the resulting `env/*.env` against their
-   previous content, and only recreate the Filebeat container (a real, if brief, capture
-   gap) when something actually changed. Installed as a 5-minute systemd timer via
-   `scripts/refresh-filebeat-enrichment-timer-install.sh`
-   (`resources/filebeat/refresh-filebeat-enrichment.{service,timer}`).
+   **Keeping this current automatically**: these interfaces' IPs can change on their own
+   (WAN IP on DHCP renewal, `wg0`/`pia` tunnel IPs on VPN reconnect/rotation). Filebeat
+   only reads `env/*.env` at container creation -- a plain restart does **not** reload
+   them (see the Gotcha below) -- so stale enrichment would otherwise silently persist.
+   `scripts/refresh-filebeat-enrichment.sh` automates the fix: re-run `interfaces.py`,
+   diff the resulting `env/*.env`, and only recreate the Filebeat container (a brief
+   capture gap) when something actually changed. Installed as a 5-minute systemd timer
+   via `scripts/refresh-filebeat-enrichment-timer-install.sh`.
 4. If the sensor doesn't already run `auditd`/`rsyslog` (e.g. a journald-only distro like Raspberry Pi OS), install and enable both -- `filebeat-<sensor>.yml`'s `auditd`/`system` modules need `/var/log/audit/audit.log`, `/var/log/syslog` and `/var/log/auth.log` to actually exist.
 5. Copy `certs/ca/ca.crt` and `certs/filebeat/{filebeat.crt,filebeat.key}` from the ELK host (generated by its `setup_pki` service after the first `./start.sh` run) onto the sensor host. Set `ELK_LAN_IP` in the ELK host's `.env` to its real LAN IP *before* that first run -- see [Podman Container Security](#podman-container-security) -- otherwise the sensor's Filebeat will fail TLS hostname verification when connecting by IP.
 6. Deploy a `resources/filebeat/filebeat-<sensor>.yml` via a `scripts/filebeat-<sensor>-podman.sh` script (see `resources/filebeat/filebeat-raspberrysrv.yml` / `scripts/filebeat-raspberrysrv-podman.sh` for a concrete example), pointing `ELASTICSEARCH_HOSTS` at the ELK host's LAN address and `ELASTICSEARCH_PASSWORD` at its `elastic_password` secret. Besides the `suricata` module, this instance also ships the sensor's own `auditd`/`system` (syslog+auth) logs and, if present, [AdGuard Home](https://github.com/AdguardTeam/AdGuardHome)'s JSON query log (tagged as its own `adguard.log` dataset).
@@ -396,7 +356,7 @@ After completing the previous steps, we can now visualize network events using t
 Add your [OTX AlienVault](https://otx.alienvault.com/) API_KEY to `resources/otx-api.py`
 
   ```bash
-  API_KEY = 'YOUR_OTX_API_KEY
+  API_KEY = 'YOUR_OTX_API_KEY'
   ```
 
 To query the OTX API you can use tools like `curl` and `jq`. 
