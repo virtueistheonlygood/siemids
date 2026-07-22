@@ -8,30 +8,35 @@
 
 ### [Suricata](https://github.com/OISF/suricata) | [Elasticsearch](https://github.com/elastic/elasticsearch) | [Kibana](https://github.com/elastic/kibana) | [Filebeat](https://github.com/elastic/beats/tree/main/filebeat) | [AdGuard Home](https://github.com/AdguardTeam/AdGuardHome) | [OTX API](https://otx.alienvault.com/)
 
-- Suricata is a powerful Network Intrusion Detection System (IDS), Intrusion Prevention System (IPS), and Network Security Monitoring (NSM) engine, it captures and inspects network traffic.
-- The captured data, formatted in the Extensible Event Format (EVE), is processed, enriched, and sent to Elasticsearch by Filebeat. In addition to Suricata logs, Filebeat collects and forwards logs from *auditd*, *auth.log*, *syslog*, and [AdGuard Home](https://github.com/AdguardTeam/AdGuardHome)'s DNS query log -- the local DNS server this project actually uses.
+- **Suricata**: a Network Intrusion Detection/Prevention System (IDS/IPS) and Network Security Monitoring (NSM) engine -- captures and inspects network traffic, logging alerts as EVE JSON.
+- **Filebeat**: ships and enriches Suricata's EVE logs to Elasticsearch. It also collects and forwards *auditd*, *auth.log*, *syslog*, and [AdGuard Home](https://github.com/AdguardTeam/AdGuardHome)'s DNS query log -- the local DNS server this project actually uses.
+- **Elasticsearch**: stores and indexes every event Filebeat ships, powering correlation and historical search.
+- **Kibana**: the dashboards, saved visualizations, and Detection Engine (detection rules/alerting) built on top of Elasticsearch -- see [Detection Rules](#detection-rules) and [Screenshots](#screenshots).
+- **AdGuard Home**: the DNS server/ad-blocker actually run in this deployment; its query log is one of Filebeat's inputs and powers the [DNS Queries](#screenshots) dashboard.
+- **OTX API** *(under development)*: optional AlienVault threat-intel IP lookups via a small local Flask API -- see [OTX Open Threat Exchange](#otx-open-threat-exchange-under-development).
 
 ## Index
 
 1. [OpenSource Components](#opensource-components)
-2. [Setup Instructions](#setup-instructions) (clone the repo, install Podman)
-3. [Configure Suricata](#configure-suricata)
-4. [Getting started](#getting-started) (Device A: the ELK host)
-  - [Podman Compose Configuration](#podman-compose-configuration)
-  - [Podman Container Security](#podman-container-security)
-  - [ELK Configuration and Objects](#elk-configuration-and-objects)
-  - [Detection Rules](#detection-rules)
-  - [ELK Passwords and Secrets](#elk-passwords-and-secrets)
-  - [Filebeat Log Collection and Enrichment](#filebeat-log-collection-and-enrichment)
-5. [Ready to start](#ready-to-start) (Device A)
-6. [Device B: Suricata Sensor (e.g. a Raspberry Pi router)](#device-b-suricata-sensor-eg-a-raspberry-pi-router)
-7. [Traffic Flow Map](#traffic-flow-map)
-8. [OTX Open Threat Exchange (under development)](#otx-open-threat-exchange-under-development)
-9. [Screenshots](#screenshots)
-10. [Contributing](#contributing)
-11. [License](#license)
+2. [Architecture](#architecture) (two devices: ELK host + Suricata sensor)
+3. [Setup Instructions](#setup-instructions) (clone the repo, install Podman)
+4. [Configure Suricata](#configure-suricata)
+5. [Getting started](#getting-started) (Device A: the ELK host)
+   - [Podman Compose Configuration](#podman-compose-configuration)
+   - [Podman Container Security](#podman-container-security)
+   - [ELK Configuration and Objects](#elk-configuration-and-objects)
+   - [Detection Rules](#detection-rules)
+   - [ELK Passwords and Secrets](#elk-passwords-and-secrets)
+   - [Filebeat Log Collection and Enrichment](#filebeat-log-collection-and-enrichment)
+6. [Ready to start](#ready-to-start) (Device A)
+7. [Device B: Suricata Sensor (e.g. a Raspberry Pi router)](#device-b-suricata-sensor-eg-a-raspberry-pi-router)
+8. [Traffic Flow Map](#traffic-flow-map)
+9. [OTX Open Threat Exchange (under development)](#otx-open-threat-exchange-under-development)
+10. [Screenshots](#screenshots)
+11. [Contributing](#contributing)
+12. [License](#license)
 
-## Setup Instructions
+## Architecture
 
 **This project deploys across two devices**: **Device A** runs the full ELK stack
 (Elasticsearch, Kibana, Filebeat) via `podman-compose` -- it needs real RAM for
@@ -46,21 +51,20 @@ The steps below (through [Ready to start](#ready-to-start)) set up **Device A fi
 [Device B: Suricata Sensor](#device-b-suricata-sensor-eg-a-raspberry-pi-router) to
 bring up the second device.
 
+## Setup Instructions
+
 1. **Clone the Repository**:
-  ```bash
-  git clone https://github.com/virtueistheonlygood/siemids
-  cd siemids
-  cp .env.example .env
-  ```
-  `.env` is git-ignored -- `start.sh` writes real, randomly-generated passwords and
-  Kibana's encryption key into it on first run, so it must never be committed. Only
-  `.env.example` (a secret-free template) is tracked.
+   ```bash
+   git clone https://github.com/virtueistheonlygood/siemids
+   cd siemids
+   cp .env.example .env
+   ```
+   `.env` is git-ignored -- `start.sh` writes real, randomly-generated passwords and
+   Kibana's encryption key into it on first run, so it must never be committed. Only
+   `.env.example` (a secret-free template) is tracked.
 
-2. **Install Podman**:
-
-This project requires Podman and podman-compose to run.
-
-- Follow the installation instructions on the [Podman website](https://podman.io/getting-started/installation) and the [podman-compose GitHub repository](https://github.com/containers/podman-compose).
+2. **Install Podman and podman-compose**:
+   - Follow the installation instructions on the [Podman website](https://podman.io/getting-started/installation) and the [podman-compose GitHub repository](https://github.com/containers/podman-compose).
 
 ## Configure Suricata
 
