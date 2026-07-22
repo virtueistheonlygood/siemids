@@ -1,0 +1,10 @@
+[Unit]
+Description=Periodically check WAN/VPN IPs and refresh Filebeat's geo-enrichment if they changed
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+RandomizedDelaySec=30s
+
+[Install]
+WantedBy=timers.target
