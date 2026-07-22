@@ -1,0 +1,235 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1760" height="1040" viewBox="0 0 1760 1040">
+  <defs>
+    <marker id="arrowSky" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#7dd3fc"/>
+    </marker>
+    <marker id="arrowViolet" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#c4b5fd"/>
+    </marker>
+    <marker id="arrowSlate" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#64748b"/>
+    </marker>
+    <marker id="arrowGreen" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#6ee7b7"/>
+    </marker>
+    <pattern id="dots" width="26" height="26" patternUnits="userSpaceOnUse">
+      <circle cx="1.2" cy="1.2" r="1.2" fill="#16233b"/>
+    </pattern>
+    <filter id="softShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="6" stdDeviation="10" flood-color="#000000" flood-opacity="0.4"/>
+    </filter>
+    <clipPath id="wifiClip">
+      <rect x="340" y="382" width="44" height="24"/>
+    </clipPath>
+  </defs>
+
+  <!-- background -->
+  <rect width="1760" height="1040" fill="#0a0f1c"/>
+  <rect width="1760" height="1040" fill="url(#dots)"/>
+
+  <!-- title -->
+  <text x="880" y="56" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="38" font-weight="700" fill="#f8fafc">Self-Hosted SIEM / IDS Architecture</text>
+  <text x="880" y="90" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="17" fill="#94a3b8">Suricata + Elastic Stack, deployed with Podman across two devices</text>
+  <line x1="60" y1="114" x2="1700" y2="114" stroke="#1e293b" stroke-width="1.5"/>
+
+  <!-- ===================== INTERNET CLOUD ===================== -->
+  <g filter="url(#softShadow)">
+    <ellipse cx="470" cy="178" rx="70" ry="42" fill="#111827" stroke="#334155" stroke-width="1.5"/>
+    <ellipse cx="530" cy="160" rx="55" ry="38" fill="#111827" stroke="#334155" stroke-width="1.5"/>
+    <ellipse cx="590" cy="178" rx="70" ry="42" fill="#111827" stroke="#334155" stroke-width="1.5"/>
+    <rect x="450" y="170" width="180" height="45" rx="20" fill="#111827" stroke="#334155" stroke-width="1.5"/>
+  </g>
+  <text x="540" y="197" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="18" font-weight="700" fill="#e2e8f0">INTERNET</text>
+
+  <line x1="470" y1="216" x2="470" y2="258" stroke="#7dd3fc" stroke-width="2.5" marker-end="url(#arrowSky)"/>
+  <text x="452" y="240" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="13" fill="#7dd3fc">WAN (eth0)</text>
+
+  <line x1="630" y1="216" x2="630" y2="258" stroke="#c4b5fd" stroke-width="2.5" stroke-dasharray="6,5" marker-end="url(#arrowViolet)"/>
+  <text x="648" y="240" text-anchor="start" font-family="Helvetica, Arial, sans-serif" font-size="13" fill="#c4b5fd">VPN tunnels</text>
+  <text x="648" y="256" text-anchor="start" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#94a3b8">(wg0 / pia)</text>
+
+  <!-- ===================== CLIENT DEVICES NODE ===================== -->
+  <g filter="url(#softShadow)">
+    <rect x="40" y="325" width="190" height="140" rx="16" fill="#111827" stroke="#334155" stroke-width="1.5"/>
+  </g>
+  <!-- laptop icon -->
+  <g transform="translate(85,352)">
+    <rect x="0" y="0" width="34" height="22" rx="2" fill="none" stroke="#7dd3fc" stroke-width="2.2"/>
+    <rect x="-6" y="22" width="46" height="6" rx="2" fill="#7dd3fc"/>
+  </g>
+  <!-- phone icon -->
+  <g transform="translate(132,350)">
+    <rect x="0" y="0" width="18" height="30" rx="4" fill="none" stroke="#7dd3fc" stroke-width="2.2"/>
+    <circle cx="9" cy="25" r="1.6" fill="#7dd3fc"/>
+  </g>
+  <text x="135" y="410" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="15" font-weight="700" fill="#f1f5f9">Connected Devices</text>
+  <text x="135" y="430" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="11.5" fill="#94a3b8">phones · laptops</text>
+  <text x="135" y="446" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="11.5" fill="#94a3b8">smart TVs · IoT</text>
+
+  <line x1="230" y1="395" x2="270" y2="395" stroke="#7dd3fc" stroke-width="2.5" marker-end="url(#arrowSky)"/>
+  <text x="250" y="384" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#7dd3fc">Wi-Fi / LAN</text>
+
+  <!-- ===================== DEVICE B CARD ===================== -->
+  <g filter="url(#softShadow)">
+    <rect x="280" y="260" width="520" height="640" rx="18" fill="#0f1729" stroke="#233047" stroke-width="1.5"/>
+  </g>
+  <rect x="296" y="266" width="488" height="6" rx="3" fill="#38bdf8"/>
+  <text x="540" y="300" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="21" font-weight="700" fill="#f8fafc">DEVICE B — NETWORK SENSOR</text>
+  <text x="540" y="320" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="13" fill="#94a3b8">Raspberry Pi router · plain podman run</text>
+  <line x1="310" y1="335" x2="770" y2="335" stroke="#1e293b" stroke-width="1"/>
+
+  <!-- chip 1: AP + DHCP/DNS -->
+  <g>
+    <rect x="320" y="350" width="440" height="90" rx="12" fill="#141f36" stroke="#28405f" stroke-width="1.2"/>
+    <rect x="320" y="350" width="4" height="90" rx="2" fill="#38bdf8"/>
+    <circle cx="362" cy="395" r="22" fill="#0c2f47" stroke="#38bdf8" stroke-width="1.5"/>
+    <g clip-path="url(#wifiClip)">
+      <circle cx="362" cy="404" r="6" fill="none" stroke="#7dd3fc" stroke-width="2"/>
+      <circle cx="362" cy="404" r="11" fill="none" stroke="#7dd3fc" stroke-width="2"/>
+      <circle cx="362" cy="404" r="16" fill="none" stroke="#7dd3fc" stroke-width="2" opacity="0.6"/>
+    </g>
+    <circle cx="362" cy="404" r="2.2" fill="#7dd3fc"/>
+    <text x="400" y="389" font-family="Helvetica, Arial, sans-serif" font-size="16" font-weight="700" fill="#f1f5f9">hostapd + dnsmasq</text>
+    <text x="400" y="409" font-family="Helvetica, Arial, sans-serif" font-size="12.5" fill="#94a3b8">Wi-Fi access point · LAN DHCP / DNS</text>
+  </g>
+
+  <!-- chip 2: AdGuard Home -->
+  <g>
+    <rect x="320" y="455" width="440" height="90" rx="12" fill="#141f36" stroke="#1f4b3a" stroke-width="1.2"/>
+    <rect x="320" y="455" width="4" height="90" rx="2" fill="#34d399"/>
+    <circle cx="362" cy="500" r="22" fill="#0d2a20" stroke="#34d399" stroke-width="1.5"/>
+    <path d="M362,486 l12,5 v10 c0,9 -6,15 -12,17 c-6,-2 -12,-8 -12,-17 v-10 z" fill="none" stroke="#6ee7b7" stroke-width="2" stroke-linejoin="round"/>
+    <path d="M356,500 l4,4 l8,-9" fill="none" stroke="#6ee7b7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="400" y="494" font-family="Helvetica, Arial, sans-serif" font-size="16" font-weight="700" fill="#f1f5f9">AdGuard Home</text>
+    <text x="400" y="514" font-family="Helvetica, Arial, sans-serif" font-size="12.5" fill="#94a3b8">Network-wide DNS filtering + query log</text>
+  </g>
+
+  <!-- chip 3: VPN egress -->
+  <g>
+    <rect x="320" y="560" width="440" height="90" rx="12" fill="#141f36" stroke="#3b3159" stroke-width="1.2"/>
+    <rect x="320" y="560" width="4" height="90" rx="2" fill="#a78bfa"/>
+    <circle cx="362" cy="605" r="22" fill="#241b3f" stroke="#a78bfa" stroke-width="1.5"/>
+    <path d="M354,601 v-6 a8,8 0 0 1 16,0 v6" fill="none" stroke="#c4b5fd" stroke-width="2.2"/>
+    <rect x="351" y="601" width="22" height="16" rx="3" fill="none" stroke="#c4b5fd" stroke-width="2.2"/>
+    <circle cx="362" cy="609" r="1.8" fill="#c4b5fd"/>
+    <text x="400" y="599" font-family="Helvetica, Arial, sans-serif" font-size="16" font-weight="700" fill="#f1f5f9">WireGuard · OpenVPN</text>
+    <text x="400" y="619" font-family="Helvetica, Arial, sans-serif" font-size="12.5" fill="#94a3b8">wg0 / pia — outbound VPN egress</text>
+  </g>
+
+  <!-- chip 4: Suricata -->
+  <g>
+    <rect x="320" y="665" width="440" height="90" rx="12" fill="#141f36" stroke="#5c3a1e" stroke-width="1.2"/>
+    <rect x="320" y="665" width="4" height="90" rx="2" fill="#f97316"/>
+    <circle cx="362" cy="710" r="22" fill="#3a2410" stroke="#f97316" stroke-width="1.5"/>
+    <ellipse cx="362" cy="710" rx="15" ry="9" fill="none" stroke="#fdba74" stroke-width="2"/>
+    <circle cx="362" cy="710" r="4" fill="#fdba74"/>
+    <text x="400" y="704" font-family="Helvetica, Arial, sans-serif" font-size="16" font-weight="700" fill="#f1f5f9">Suricata IDS / IPS</text>
+    <text x="400" y="724" font-family="Helvetica, Arial, sans-serif" font-size="12.5" fill="#94a3b8">af-packet capture: eth0 · wlan0 · wg0 · pia</text>
+  </g>
+
+  <line x1="540" y1="755" x2="540" y2="768" stroke="#64748b" stroke-width="2" marker-end="url(#arrowSlate)"/>
+
+  <!-- chip 5: Filebeat sensor -->
+  <g>
+    <rect x="320" y="770" width="440" height="90" rx="12" fill="#141f36" stroke="#1c4a52" stroke-width="1.2"/>
+    <rect x="320" y="770" width="4" height="90" rx="2" fill="#22d3ee"/>
+    <circle cx="362" cy="815" r="22" fill="#0c2c33" stroke="#22d3ee" stroke-width="1.5"/>
+    <line x1="352" y1="808" x2="368" y2="808" stroke="#67e8f9" stroke-width="2" stroke-linecap="round"/>
+    <line x1="352" y1="815" x2="372" y2="815" stroke="#67e8f9" stroke-width="2" stroke-linecap="round"/>
+    <line x1="352" y1="822" x2="365" y2="822" stroke="#67e8f9" stroke-width="2" stroke-linecap="round"/>
+    <path d="M369,819 l6,4 l-6,4" fill="none" stroke="#67e8f9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="400" y="809" font-family="Helvetica, Arial, sans-serif" font-size="16" font-weight="700" fill="#f1f5f9">Filebeat (sensor)</text>
+    <text x="400" y="829" font-family="Helvetica, Arial, sans-serif" font-size="12.5" fill="#94a3b8">ships eve.json + AdGuard + system logs</text>
+  </g>
+
+  <text x="540" y="885" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="12" fill="#64748b">deployed via podman run --restart=always (no compose)</text>
+
+  <!-- ===================== CROSS-DEVICE ARROW ===================== -->
+  <path d="M800,815 L890,815 L890,405 L975,405" fill="none" stroke="#7dd3fc" stroke-width="3" marker-end="url(#arrowSky)"/>
+  <rect x="808" y="585" width="164" height="46" rx="10" fill="#0a0f1c" stroke="#233047" stroke-width="1.2"/>
+  <text x="890" y="604" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#7dd3fc">HTTPS + mutual TLS</text>
+  <text x="890" y="621" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="11.5" fill="#94a3b8">over the LAN</text>
+
+  <!-- ===================== DEVICE A CARD ===================== -->
+  <g filter="url(#softShadow)">
+    <rect x="980" y="260" width="520" height="640" rx="18" fill="#0f1729" stroke="#233047" stroke-width="1.5"/>
+  </g>
+  <rect x="996" y="266" width="488" height="6" rx="3" fill="#2dd4bf"/>
+  <text x="1240" y="300" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="21" font-weight="700" fill="#f8fafc">DEVICE A — ELK HOST</text>
+  <text x="1240" y="320" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="13" fill="#94a3b8">Orchestrated with podman-compose</text>
+  <line x1="1010" y1="335" x2="1470" y2="335" stroke="#1e293b" stroke-width="1"/>
+
+  <!-- chip 1: Elasticsearch -->
+  <g>
+    <rect x="1020" y="350" width="440" height="110" rx="12" fill="#141f36" stroke="#3a3315" stroke-width="1.2"/>
+    <rect x="1020" y="350" width="4" height="110" rx="2" fill="#fbbf24"/>
+    <circle cx="1062" cy="405" r="22" fill="#332b0c" stroke="#fbbf24" stroke-width="1.5"/>
+    <ellipse cx="1062" cy="396" rx="13" ry="5" fill="none" stroke="#fde68a" stroke-width="2"/>
+    <path d="M1049,396 v18 c0,3 6,5 13,5 s13,-2 13,-5 v-18" fill="none" stroke="#fde68a" stroke-width="2"/>
+    <path d="M1049,405 c0,3 6,5 13,5 s13,-2 13,-5" fill="none" stroke="#fde68a" stroke-width="2"/>
+    <text x="1100" y="399" font-family="Helvetica, Arial, sans-serif" font-size="16" font-weight="700" fill="#f1f5f9">Elasticsearch</text>
+    <text x="1100" y="419" font-family="Helvetica, Arial, sans-serif" font-size="12.5" fill="#94a3b8">single-node cluster · indexes &amp; correlates</text>
+    <text x="1100" y="436" font-family="Helvetica, Arial, sans-serif" font-size="12.5" fill="#94a3b8">every event, secured with TLS</text>
+  </g>
+
+  <!-- chip 2: Filebeat host -->
+  <g>
+    <rect x="1020" y="482" width="440" height="110" rx="12" fill="#141f36" stroke="#1c4a52" stroke-width="1.2"/>
+    <rect x="1020" y="482" width="4" height="110" rx="2" fill="#22d3ee"/>
+    <circle cx="1062" cy="537" r="22" fill="#0c2c33" stroke="#22d3ee" stroke-width="1.5"/>
+    <line x1="1052" y1="530" x2="1068" y2="530" stroke="#67e8f9" stroke-width="2" stroke-linecap="round"/>
+    <line x1="1052" y1="537" x2="1072" y2="537" stroke="#67e8f9" stroke-width="2" stroke-linecap="round"/>
+    <line x1="1052" y1="544" x2="1065" y2="544" stroke="#67e8f9" stroke-width="2" stroke-linecap="round"/>
+    <path d="M1069,541 l6,4 l-6,4" fill="none" stroke="#67e8f9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="1100" y="531" font-family="Helvetica, Arial, sans-serif" font-size="16" font-weight="700" fill="#f1f5f9">Filebeat (host)</text>
+    <text x="1100" y="551" font-family="Helvetica, Arial, sans-serif" font-size="12.5" fill="#94a3b8">ships Device A's own auditd / syslog /</text>
+    <text x="1100" y="568" font-family="Helvetica, Arial, sans-serif" font-size="12.5" fill="#94a3b8">auth.log — no Suricata module here</text>
+  </g>
+
+  <!-- chip 3: Kibana -->
+  <g>
+    <rect x="1020" y="614" width="440" height="110" rx="12" fill="#141f36" stroke="#4a1f3a" stroke-width="1.2"/>
+    <rect x="1020" y="614" width="4" height="110" rx="2" fill="#f472b6"/>
+    <circle cx="1062" cy="669" r="22" fill="#331226" stroke="#f472b6" stroke-width="1.5"/>
+    <rect x="1050" y="658" width="24" height="17" rx="2" fill="none" stroke="#fbcfe8" stroke-width="2"/>
+    <line x1="1062" y1="675" x2="1062" y2="680" stroke="#fbcfe8" stroke-width="2"/>
+    <line x1="1055" y1="680" x2="1069" y2="680" stroke="#fbcfe8" stroke-width="2" stroke-linecap="round"/>
+    <polyline points="1054,671 1058,665 1062,668 1068,661" fill="none" stroke="#fbcfe8" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="1100" y="663" font-family="Helvetica, Arial, sans-serif" font-size="16" font-weight="700" fill="#f1f5f9">Kibana</text>
+    <text x="1100" y="683" font-family="Helvetica, Arial, sans-serif" font-size="12.5" fill="#94a3b8">dashboards, saved objects &amp; the</text>
+    <text x="1100" y="700" font-family="Helvetica, Arial, sans-serif" font-size="12.5" fill="#94a3b8">Detection Engine, all TLS-secured</text>
+  </g>
+
+  <!-- chip 4: Detection Rules + Dashboards -->
+  <g>
+    <rect x="1020" y="746" width="440" height="110" rx="12" fill="#141f36" stroke="#243a1f" stroke-width="1.2"/>
+    <rect x="1020" y="746" width="4" height="110" rx="2" fill="#a3e635"/>
+    <circle cx="1062" cy="801" r="22" fill="#20330d" stroke="#a3e635" stroke-width="1.5"/>
+    <path d="M1050,806 l7,-13 l6,8 l5,-16" fill="none" stroke="#d9f99d" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="1100" y="795" font-family="Helvetica, Arial, sans-serif" font-size="16" font-weight="700" fill="#f1f5f9">Detection Rules + Dashboards</text>
+    <text x="1100" y="815" font-family="Helvetica, Arial, sans-serif" font-size="12.5" fill="#94a3b8">25 curated rules · Traffic Flow Map ·</text>
+    <text x="1100" y="832" font-family="Helvetica, Arial, sans-serif" font-size="12.5" fill="#94a3b8">MITRE ATT&amp;CK coverage</text>
+  </g>
+
+  <text x="1240" y="885" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="12" fill="#64748b">passwords + Kibana encryption key generated once by start.sh</text>
+
+  <!-- ===================== VIEWER NODE ===================== -->
+  <line x1="1460" y1="801" x2="1550" y2="801" stroke="#a3e635" stroke-width="2.5" marker-end="url(#arrowGreen)"/>
+  <g filter="url(#softShadow)">
+    <rect x="1560" y="731" width="160" height="140" rx="16" fill="#111827" stroke="#334155" stroke-width="1.5"/>
+  </g>
+  <g transform="translate(1608,758)">
+    <rect x="0" y="0" width="44" height="30" rx="3" fill="none" stroke="#bef264" stroke-width="2.2"/>
+    <polyline points="6,22 14,12 20,17 30,7" fill="none" stroke="#bef264" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <line x1="22" y1="30" x2="22" y2="35" stroke="#bef264" stroke-width="2.2"/>
+    <line x1="12" y1="35" x2="32" y2="35" stroke="#bef264" stroke-width="2.2" stroke-linecap="round"/>
+  </g>
+  <text x="1640" y="822" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="15" font-weight="700" fill="#f1f5f9">You / Analyst</text>
+  <text x="1640" y="842" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="11.5" fill="#94a3b8">browse dashboards</text>
+  <text x="1640" y="858" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="11.5" fill="#94a3b8">&amp; security alerts</text>
+
+  <!-- ===================== FOOTER ===================== -->
+  <line x1="60" y1="945" x2="1700" y2="945" stroke="#1e293b" stroke-width="1"/>
+  <text x="880" y="978" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="14.5" fill="#94a3b8">Open-source &amp; self-hosted — Suricata · Elasticsearch · Kibana · Filebeat · AdGuard Home, all on Podman</text>
+  <text x="880" y="1002" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="13" fill="#475569">github.com/virtueistheonlygood/siemids</text>
+</svg>

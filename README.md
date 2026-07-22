@@ -38,6 +38,8 @@
 
 ## Architecture
 
+![Architecture diagram](resources/images/architecture-diagram.png)
+
 **This project deploys across two devices**: **Device A** runs the full ELK stack
 (Elasticsearch, Kibana, Filebeat) via `podman-compose` -- it needs real RAM for
 Elasticsearch. **Device B** runs Suricata natively (a router/AP-class box, e.g. a
