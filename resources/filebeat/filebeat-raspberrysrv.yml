@@ -309,7 +309,8 @@ processors:
 ### can't tell whether a given flow will end up exiting via wg0 or the
 ### normal router, since that's a routing decision made downstream of this
 ### capture point. wlan0/wlan1 clients are unconditionally VPN-routed (see
-### the existing `-i wlan0/wlan1 -o wg0 -j ACCEPT` iptables rules);
+### the existing `iifname { "wlan0", "wlan1" } oifname "wg0" accept` nftables
+### rule in /etc/nftables.conf, table inet homelan);
 ### 192.168.100.10 is an explicit gateway-override host (DEPLOYMENT.md).
 ### Add further eth0-sourced IPs here if more hosts are pointed at
 ### raspberrysrv as their gateway.

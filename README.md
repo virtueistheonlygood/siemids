@@ -193,7 +193,7 @@ its [MITRE ATT&CK](https://attack.mitre.org/) tactic/technique.
 | --- | --- |
 | **SSH / Credential Access** | Brute-force (internal/external/successful, both a custom threshold rule and Elastic's EQL variants), direct root login, first-seen source IP, unusual user or SSH public key |
 | **Privilege escalation / `sudo` misuse** | `sudo` spawning an interactive shell (`sudo bash`/`su`), `sudo` touching `/etc/passwd`, `/etc/shadow`, `/etc/sudoers`, or account-management commands |
-| **Persistence / account & system changes** | New Linux user/group creation, manual `iptables` firewall changes (excluding normal Podman/netavark churn), suspicious `rc.local` errors |
+| **Persistence / account & system changes** | New Linux user/group creation, manual `nftables` firewall changes (excluding netavark's and wg-quick's own automatic table churn), suspicious `rc.local` errors |
 | **Kernel integrity** | Tainted or out-of-tree kernel module loads, executable-stack process starts, suspicious `bpf_probe_write_user` usage |
 | **Command and control** | AdGuard blocked-query spike from one client (beaconing indicator), Cobalt Strike's default team-server TLS certificate, **Suricata IoC feed match** (`siemids-suricata-ioc-feed-match` -- fires specifically on Feodo Tracker/SSLBL indicator hits, high severity, separate from the generic Suricata rule below since a confirmed-bad indicator match deserves different priority than a heuristic signature match) |
 | **Network (Suricata)** | Any real Suricata alert signature (tuned to exclude two known decoder-noise signatures), potential outbound SSH scans (tuned to exclude this project's own admin/automation hosts) |
