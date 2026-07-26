@@ -1,0 +1,45 @@
+[Unit]
+Description=Update Suricata rules (live reload, no capture gap)
+After=network-online.target
+Requires=network-online.target
+
+[Service]
+Type=oneshot
+# `suricata-update` with zero enabled sources does NOT fall back to any
+# built-in ruleset -- et/open and every IoC feed must be explicitly enabled
+# via `suricata-update enable-source` (see scripts/suricata-update-timer-install.sh)
+# or this refreshes nothing but Suricata's own bundled protocol/anomaly
+# event rules.
+#
+# Runs *without* stopping Suricata: at this deployment's rule-set size (~78k
+# rules: et/open + several abuse.ch/etnetera IoC feeds), the `suricata -T`
+# compile/test step spawned by suricata-update alongside the already-running
+# live process (itself ~1.5GB+) used to reliably OOM-kill the test subprocess
+# on this 3.7GB Raspberry Pi 4B. Fixed by two changes, both required:
+#
+#  1. An extra 2GB disk-backed swap file (/var/swap) enabled alongside the
+#     existing 2GB zram swap, giving the compile step enough headroom to
+#     survive instead of triggering the OOM killer (confirmed via dmesg: zero
+#     OOM kills once this was added, vs. reliable kills without it). See
+#     scripts/suricata-update-timer-install.sh, which activates and persists
+#     this swap file.
+#  2. `nice -n 19` + `ionice -c3` on the update process, so it yields CPU and
+#     disk I/O to the live capture threads under the resulting memory
+#     pressure/swapping. Without this, live packet capture measurably suffers
+#     during the compile (~38.7k dropped packets smeared over ~9 minutes,
+#     confirmed via Suricata's own stats.capture.kernel_drops counter, vs. a
+#     clean ~1-2 minute full stop). With it, the same compile added only
+#     ~140 drops -- close enough to zero to prefer this over stopping
+#     Suricata at all.
+#
+# suricata-update auto-detects the running instance via its unix-command
+# socket (enabled in suricata.yaml) and triggers a live rule reload itself
+# after a successful test -- no explicit reload step needed here.
+#
+# ExecStartPre refreshes the two custom IoC data files (URLhaus domain list,
+# Spamhaus DROP CIDR list -- see resources/suricata/local-rules/) *before*
+# the compile/reload step, not stopping anything itself -- see
+# scripts/refresh-ioc-datasets.sh. --local points suricata-update at the
+# directory holding the two custom rules that read those files.
+ExecStartPre=/home/skynet/siemids/scripts/refresh-ioc-datasets.sh
+ExecStart=/usr/bin/nice -n 19 /usr/bin/ionice -c3 /usr/bin/suricata-update --local /var/lib/suricata/rules.local

@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily Suricata rules update
+
+[Timer]
+OnCalendar=*-*-* 05:00:00
+RandomizedDelaySec=30min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

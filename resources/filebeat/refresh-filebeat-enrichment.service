@@ -1,0 +1,9 @@
+[Unit]
+Description=Refresh Filebeat's WAN/VPN geo-enrichment and recreate the container if it changed
+After=network-online.target
+Requires=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/skynet/siemids
+ExecStart=/home/skynet/siemids/scripts/refresh-filebeat-enrichment.sh

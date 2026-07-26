@@ -1,0 +1,73 @@
+hostname: "skynetpi"
+agent.hostname: "filebeat-skynetpi"
+name: "skynetpi"
+tags: ["siemids", "auditd", "system", "skynetpi"]
+
+#============================= Filebeat modules ===============================
+
+filebeat.config.modules:
+  # Glob pattern for configuration loading
+  path: ${path.config}/modules.d/*.yml
+
+  # Set to true to enable config reloading
+  reload.enabled: true
+
+  # Period on which files under path should be checked for changes
+  reload.period: 120s
+
+# This instance ships skynetpi's own OS logs only -- it's the ELK host, not
+# a network sensor, so there's no local/VPN traffic to geo-enrich and no
+# interfaces.py/env files needed here (that only applies on sensor hosts
+# like raspberrysrv, whose Suricata/DNS logs carry source.ip/destination.ip
+# fields worth enriching).
+filebeat.modules:
+- module: auditd
+  log:
+    enabled: true
+    var.paths: ["/var/log/audit/audit.log*"]
+- module: system
+  syslog:
+    enabled: true
+    var.paths: ["/var/log/syslog*"]
+  auth:
+    enabled: true
+    var.paths: ["/var/log/auth.log*"]
+
+# ======================= Elasticsearch template setting =======================
+
+# Kept in sync with filebeat-raspberrysrv.yml's template settings -- both
+# instances write into the same shared filebeat-8.17.4 data stream, so
+# mismatched settings here would just cause template thrashing between the
+# two. See the comment there for the full rationale (single-node cluster,
+# oversharded for this deployment's actual volume).
+setup.template.overwrite: true
+setup.template.settings:
+  index.number_of_shards: 1
+  index.number_of_replicas: 0
+  index.refresh_interval: 30s
+
+# ================================= Processors =================================
+processors:
+  - add_host_metadata:
+      when.not.contains.tags: forwarded
+  - add_cloud_metadata: ~
+  - add_kubernetes_metadata: ~
+  # add_host_metadata's hostname resolution is unreliable in this container
+  # setup (Podman leaks the host's own /etc/hosts entry alongside the
+  # container's, so go-sysinfo flip-flops between the two, and sometimes the
+  # container ID, across lookups within the same process). Force a
+  # deterministic value instead of trusting it.
+  - add_fields:
+      target: 'host'
+      fields:
+        hostname: 'skynetpi'
+        name: 'skynetpi'
+
+output.elasticsearch:
+  hosts: ["https://elasticsearch:9200"]
+  username: elastic
+  password: '${ELASTICSEARCH_PASSWORD}'
+  ssl:
+    certificate_authorities: "/usr/share/elasticsearch/config/certs/ca/ca.crt"
+    certificate: "/usr/share/elasticsearch/config/certs/filebeat/filebeat.crt"
+    key: "/usr/share/elasticsearch/config/certs/filebeat/filebeat.key"
