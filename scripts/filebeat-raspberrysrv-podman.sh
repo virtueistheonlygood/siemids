@@ -10,9 +10,10 @@
 #      elastic_password secret exist.
 #   2. Copy certs/ca/ca.crt and certs/filebeat/{filebeat.crt,filebeat.key}
 #      from the ELK host into $BASE_DIR/certs/{ca,filebeat}/ on this Pi.
-#   3. Run scripts/interfaces.py on this Pi to generate env/localnet.env,
-#      env/vpnet.env and env/piavpn.env (needed by the geo-enrichment
-#      processors).
+#   3. Run scripts/setup-geo-enrichment.sh once (see that script and
+#      DEPLOYMENT.md) -- geo enrichment is done server-side via an
+#      Elasticsearch Enrich pipeline now, not by Filebeat itself, so this
+#      script no longer needs env/{localnet,vpnet,piavpn}.env at all.
 #   4. Install and enable auditd + rsyslog on this Pi (it runs journald-only
 #      by default, so /var/log/audit/audit.log, /var/log/syslog and
 #      /var/log/auth.log don't exist otherwise): `apt install auditd rsyslog`.
@@ -50,11 +51,6 @@ if [ ! -f "$CERTS_DIR/ca/ca.crt" ] || [ ! -f "$CERTS_DIR/filebeat/filebeat.crt" 
     exit 1
 fi
 
-if [ ! -f "$BASE_DIR/env/localnet.env" ] || [ ! -f "$BASE_DIR/env/vpnet.env" ] || [ ! -f "$BASE_DIR/env/piavpn.env" ]; then
-    echo "Missing $BASE_DIR/env/*.env -- run scripts/interfaces.py on this Pi first."
-    exit 1
-fi
-
 # Filebeat refuses to start unless its config file is owned by root and not
 # group/world-writable.
 sudo chown root:root "$BASE_DIR/resources/filebeat/filebeat-raspberrysrv.yml" "$BASE_DIR/resources/suricata/suricata.yml"
@@ -66,17 +62,11 @@ sudo podman run -d \
     --name "$CONTAINER_NAME" \
     --user root \
     --hostname raspberrysrv \
-    --env-file "$BASE_DIR/env/localnet.env" \
-    --env-file "$BASE_DIR/env/vpnet.env" \
-    --env-file "$BASE_DIR/env/piavpn.env" \
     -e ELASTICSEARCH_HOSTS="$ELASTICSEARCH_HOSTS" \
     -e ELASTICSEARCH_USERNAME=elastic \
     -e ELASTICSEARCH_PASSWORD="$ELASTICSEARCH_PASSWORD" \
     -v "$BASE_DIR/resources/filebeat/filebeat-raspberrysrv.yml:/usr/share/filebeat/filebeat.yml:ro" \
     -v "$BASE_DIR/resources/suricata/suricata.yml:/usr/share/filebeat/modules.d/suricata.yml:ro" \
-    -v "$BASE_DIR/env/localnet.env:/usr/share/filebeat/localnet.env:ro" \
-    -v "$BASE_DIR/env/vpnet.env:/usr/share/filebeat/vpnet.env:ro" \
-    -v "$BASE_DIR/env/piavpn.env:/usr/share/filebeat/piavpn.env:ro" \
     -v "$CERTS_DIR:/usr/share/elasticsearch/config/certs:ro" \
     -v /suricata/:/suricata/:ro \
     -v /var/log/:/var/log/:ro \

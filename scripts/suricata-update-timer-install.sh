@@ -4,7 +4,9 @@
 # resources/suricata/suricata-update.service for how (extra disk-backed swap
 # + nice/ionice on the update process, after plain live-reload was found to
 # reliably OOM-kill the compile/test step at this deployment's ~78k-rule
-# size).
+# size). Also enables two custom IoC rules (resources/suricata/local-rules/)
+# via --local: URLhaus known-malicious domains and Spamhaus DROP-listed
+# outbound destinations, refreshed daily by scripts/refresh-ioc-datasets.sh.
 set -e
 
 BASE_DIR="$(cd "$(dirname "$0")/.." && pwd)"
@@ -61,9 +63,17 @@ sudo suricata-update enable-source etnetera/aggressive
 
 sudo suricata-update update-sources
 
+# Custom IoC rules (URLhaus known-malicious domains, Spamhaus DROP-listed outbound
+# destinations -- see resources/suricata/local-rules/) merged in via --local. Copy the
+# rule files into place and populate their data files before the first suricata-update
+# run, same as refresh-ioc-datasets.sh does on every subsequent daily run.
+sudo mkdir -p /var/lib/suricata/rules.local
+sudo cp "$BASE_DIR"/resources/suricata/local-rules/*.rules /var/lib/suricata/rules.local/
+sudo "$BASE_DIR/scripts/refresh-ioc-datasets.sh"
+
 # Same nice/ionice live-reload the daily timer uses (see
 # resources/suricata/suricata-update.service) -- Suricata is never stopped.
-sudo nice -n 19 ionice -c3 suricata-update
+sudo nice -n 19 ionice -c3 suricata-update --local /var/lib/suricata/rules.local
 
 sudo cp "$BASE_DIR/resources/suricata/suricata-update.service" /etc/systemd/system/suricata-update.service
 sudo cp "$BASE_DIR/resources/suricata/suricata-update.timer" /etc/systemd/system/suricata-update.timer

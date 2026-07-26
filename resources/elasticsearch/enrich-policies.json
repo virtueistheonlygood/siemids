@@ -1,0 +1,16 @@
+{
+  "net-geo-cidr": {
+    "range": {
+      "indices": ["net-geo-source"],
+      "match_field": "cidr",
+      "enrich_fields": ["profile", "geo", "as"]
+    }
+  },
+  "net-geo-profile": {
+    "match": {
+      "indices": ["net-geo-source"],
+      "match_field": "profile",
+      "enrich_fields": ["geo", "as"]
+    }
+  }
+}

@@ -100,36 +100,94 @@ with open("geoip/piavpn.json", "w") as f:
     }
     json.dump(output, f)
 
-# Generate corresponding environments to be used as variables on filebeat processors
-with open('geoip/localnet.json', 'r') as f:
-    config = json.load(f)
+# Push the same data to Elasticsearch instead of writing env/*.env -- geo
+# enrichment is now done server-side by two Enrich policies (net-geo-cidr,
+# net-geo-profile; see resources/elasticsearch/) reading from the
+# net-geo-source index, not by Filebeat's own client-side add_fields
+# reading these values in at container-creation time. This means an IP
+# change no longer requires recreating Filebeat (see
+# scripts/refresh-filebeat-enrichment.sh) -- it only needs these documents
+# updated and the two policies re-executed, both cheap ES API calls.
+#
+# Requires env/elk.env (ELASTICSEARCH_HOSTS/ELASTICSEARCH_PASSWORD) and
+# certs/ca/ca.crt -- same prerequisites filebeat-raspberrysrv-podman.sh
+# already has. No error handling here either, consistent with the rest of
+# this script: if elk.env or the certs are missing, or the ES host is
+# unreachable, this just throws and exits non-zero.
 
-with open('env/localnet.env', 'w') as f:
-    for key, value in config.items():
-        if isinstance(value, dict):
-            for subkey, subvalue in value.items():
-                f.write(f'{key}_{subkey.upper()}={subvalue}\n')
-        else:
-            f.write(f'{key.upper()}={value}\n')
+def read_env_file(path):
+    values = {}
+    with open(path) as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            k, v = line.split("=", 1)
+            values[k] = v
+    return values
 
-with open('geoip/vpnet.json', 'r') as f:
-    config = json.load(f)
 
-with open('env/vpnet.env', 'w') as f:
-    for key, value in config.items():
-        if isinstance(value, dict):
-            for subkey, subvalue in value.items():
-                f.write(f'{key}_{subkey.upper()}={subvalue}\n')
-        else:
-            f.write(f'{key.upper()}={value}\n')
+def geo_fields(geo):
+    return {
+        "location": f"POINT ({geo.get('lon')} {geo.get('lat')})",
+        "country_name": geo.get("country"),
+        "country_iso_code": geo.get("countryCode"),
+        "region_iso_code": geo.get("region"),
+        "continent_name": geo.get("timezone"),
+        "region_name": geo.get("regionName"),
+        "city_name": geo.get("city"),
+    }
 
-with open('geoip/piavpn.json', 'r') as f:
-    config = json.load(f)
 
-with open('env/piavpn.env', 'w') as f:
-    for key, value in config.items():
-        if isinstance(value, dict):
-            for subkey, subvalue in value.items():
-                f.write(f'{key}_{subkey.upper()}={subvalue}\n')
-        else:
-            f.write(f'{key.upper()}={value}\n')
+def as_fields(geo):
+    return {"organization": {"name": geo.get("org")}}
+
+
+def push_doc(es_host, es_password, doc_id, body):
+    subprocess.run(
+        [
+            "curl", "-sS", "--fail", "--cacert", "certs/ca/ca.crt",
+            "-u", f"elastic:{es_password}",
+            "-X", "PUT", f"{es_host}/net-geo-source/_doc/{doc_id}",
+            "-H", "Content-Type: application/json",
+            "-d", json.dumps(body),
+        ],
+        check=True, capture_output=True,
+    )
+
+
+elk_env = read_env_file("env/elk.env")
+es_host = elk_env["ELASTICSEARCH_HOSTS"]
+es_password = elk_env["ELASTICSEARCH_PASSWORD"]
+
+# Same ranges as the "Local Networks" / "WireGuard" / "PIA VPN" blocks this
+# replaces in filebeat-raspberrysrv.yml. The two dnsmasq_pia-related "DNS PIA
+# UPSTREAM" IPs (192.168.100.200, 10.0.0.243) are intentionally NOT CIDR
+# entries here -- 192.168.100.200 overlaps with the 192.168.100.0/24 localnet
+# range below, and Elasticsearch's range enrich policy does not reliably
+# prefer the more specific match on overlap (confirmed via _simulate:
+# resolved to localnet's geo instead of piavpn's). Those two IPs are matched
+# by exact equality directly in the pipeline instead (see
+# resources/elasticsearch/suricata-eve-pipeline-patch.json), falling back to
+# this CIDR policy otherwise -- no overlap, no ambiguity.
+local_cidrs = ["10.1.1.0/24", "10.10.10.0/24", "192.168.100.0/24"]
+
+docs = {}
+for i, cidr in enumerate(local_cidrs):
+    docs[f"localnet-{i}"] = {
+        "profile": "localnet", "cidr": cidr,
+        "geo": geo_fields(localnet_geo), "as": as_fields(localnet_geo),
+    }
+
+docs["vpnet-iface"] = {
+    "profile": "vpnet", "cidr": f"{vpnet_iface[vpnet_1]}/32",
+    "geo": geo_fields(vpnet_geo), "as": as_fields(vpnet_geo),
+}
+
+docs["piavpn-iface"] = {
+    "profile": "piavpn", "cidr": f"{piavpn_iface[piavpn_1]}/32",
+    "geo": geo_fields(piavpn_geo), "as": as_fields(piavpn_geo),
+}
+
+for doc_id, body in docs.items():
+    push_doc(es_host, es_password, doc_id, body)

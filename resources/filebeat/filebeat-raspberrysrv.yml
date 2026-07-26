@@ -7,10 +7,6 @@ filebeat.config.inputs:
   enabled: true
   reload.enabled: true
   reload.period: 10s
-  env:
-    - localnet.env
-    - vpnet.env
-    - piavpn.env
 
 # AdGuard Home's query log is newline-delimited JSON -- parse it directly
 # rather than via a filebeat module (AdGuard has none). Tagged as its own
@@ -153,238 +149,20 @@ processors:
                 event.action: "allowed"
 
 ###
-### Local Networks
+### Local Networks / WireGuard / PIA VPN / VPN Hop / PIA DNS Hop / DNS PIA
+### UPSTREAM geo-enrichment: moved server-side.
 ###
-### Two bugs fixed here vs. the original version of this config:
-### 1. The suricata module's own input processors convert source.ip/
-###    destination.ip to native IP-typed fields (config/eve.yml: `convert
-###    ... type: ip`), not plain strings. Beats' `contains` condition is
-###    string-only and silently never matches typed IP fields. `network` is
-###    the condition built for this: it evaluates CIDR membership correctly
-###    against IP-typed fields.
-### 2. `target: 'source.geo'` (a dotted string) does NOT nest fields under
-###    source.geo -- it creates a separate top-level field literally named
-###    "source.geo" (with a period in the name), which silently fails to
-###    index/appear once "source" is already mapped as an object elsewhere
-###    (confirmed by isolated testing: target must be the plain namespace,
-###    e.g. 'source', with the nested key given in `fields:` instead).
-###
-### Covers all three physically-local ranges: the wlan0/wlan1 client APs
-### (10.10.10.0/24, 10.1.1.0/24) and the eth0 LAN (192.168.100.0/24, where
-### raspberrysrv/skynetpi/AdGuard/the router itself all live) -- the goal is
-### identifying where a connection actually originates, not just AP clients.
-### 192.168.1.0/24 (present in the original version of this file) was
-### removed -- it isn't a real subnet anywhere in this deployment.
-
-  - add_fields:
-      when:
-        network:
-          source.ip: ['10.1.1.0/24', '10.10.10.0/24', '192.168.100.0/24']
-      target: 'source'
-      fields:
-        geo:
-          location: POINT (${localnet_geo_LON} ${localnet_geo_LAT})
-          country_name: '${localnet_geo_COUNTRY}'
-          country_iso_code: '${localnet_geo_COUNTRYCODE}'
-          region_iso_code: '${localnet_geo_REGION}'
-          continent_name: '${localnet_geo_TIMEZONE}'
-          region_name: '${localnet_geo_REGIONNAME}'
-          city_name: '${localnet_geo_CITY}'
-        as:
-          organization:
-            name: '${localnet_geo_ORG}'
-
-  - add_fields:
-      when:
-        network:
-          destination.ip: ['10.1.1.0/24', '10.10.10.0/24', '192.168.100.0/24']
-      target: 'destination'
-      fields:
-        geo:
-          location: POINT (${localnet_geo_LON} ${localnet_geo_LAT})
-          country_name: '${localnet_geo_COUNTRY}'
-          country_iso_code: '${localnet_geo_COUNTRYCODE}'
-          region_iso_code: '${localnet_geo_REGION}'
-          continent_name: '${localnet_geo_TIMEZONE}'
-          region_name: '${localnet_geo_REGIONNAME}'
-          city_name: '${localnet_geo_CITY}'
-        as:
-          organization:
-            name: '${localnet_geo_ORG}'
-
-###
-### WireGuard
-###
-
-  - add_fields:
-      when:
-        network:
-          source.ip: ['${vpnet_iface_WG0}/32']
-      target: 'source'
-      fields:
-        geo:
-          location: POINT (${vpnet_geo_LON} ${vpnet_geo_LAT})
-          country_name: '${vpnet_geo_COUNTRY}'
-          country_iso_code: '${vpnet_geo_COUNTRYCODE}'
-          region_iso_code: '${vpnet_geo_REGION}'
-          continent_name: '${vpnet_geo_TIMEZONE}'
-          region_name: '${vpnet_geo_REGIONNAME}'
-          city_name: '${vpnet_geo_CITY}'
-        as:
-          organization:
-            name: '${vpnet_geo_ORG}'
-
-  - add_fields:
-      when:
-        network:
-          destination.ip: ['${vpnet_iface_WG0}/32']
-      target: 'destination'
-      fields:
-        geo:
-          location: POINT (${vpnet_geo_LON} ${vpnet_geo_LAT})
-          country_name: '${vpnet_geo_COUNTRY}'
-          country_iso_code: '${vpnet_geo_COUNTRYCODE}'
-          region_iso_code: '${vpnet_geo_REGION}'
-          continent_name: '${vpnet_geo_TIMEZONE}'
-          region_name: '${vpnet_geo_REGIONNAME}'
-          city_name: '${vpnet_geo_CITY}'
-        as:
-          organization:
-            name: '${vpnet_geo_ORG}'
-
-###
-### PIA VPN
-###
-
-  - add_fields:
-      when:
-        network:
-          source.ip: ['${piavpn_iface_PIA}/32']
-      target: 'source'
-      fields:
-        geo:
-          location: POINT (${piavpn_geo_LON} ${piavpn_geo_LAT})
-          country_name: '${piavpn_geo_COUNTRY}'
-          country_iso_code: '${piavpn_geo_COUNTRYCODE}'
-          region_iso_code: '${piavpn_geo_REGION}'
-          continent_name: '${piavpn_geo_TIMEZONE}'
-          region_name: '${piavpn_geo_REGIONNAME}'
-          city_name: '${piavpn_geo_CITY}'
-        as:
-          organization:
-            name: '${piavpn_geo_ORG}'
-
-  - add_fields:
-      when:
-        network:
-          destination.ip: ['${piavpn_iface_PIA}/32']
-      target: 'destination'
-      fields:
-        geo:
-          location: POINT (${piavpn_geo_LON} ${piavpn_geo_LAT})
-          country_name: '${piavpn_geo_COUNTRY}'
-          country_iso_code: '${piavpn_geo_COUNTRYCODE}'
-          region_iso_code: '${piavpn_geo_REGION}'
-          continent_name: '${piavpn_geo_TIMEZONE}'
-          region_name: '${piavpn_geo_REGIONNAME}'
-          city_name: '${piavpn_geo_CITY}'
-        as:
-          organization:
-            name: '${piavpn_geo_ORG}'
-
-###
-### VPN Hop (synthetic local -> VPN-exit leg, for a second Traffic Flow Map layer)
-###
-### Kibana Maps' point-to-point layer draws a line between exactly one source
-### and one destination per document -- it can't show a true 3-point path
-### (real client -> VPN exit -> real destination) from a single flow record,
-### since destination.ip on a captured packet is always the actual target,
-### never the VPN's own address (only the source gets NAT-rewritten in
-### transit). This synthesizes the missing "local -> VPN exit" leg as its
-### own field pair (vpn_hop.source/destination), so a second map layer can
-### draw it alongside the existing "VPN exit -> destination" leg, which
-### already exists as-is via the wg0-captured events above.
-###
-### Applied by policy, not verified per-packet -- a single eth0 capture
-### can't tell whether a given flow will end up exiting via wg0 or the
-### normal router, since that's a routing decision made downstream of this
-### capture point. wlan0/wlan1 clients are unconditionally VPN-routed (see
-### the existing `iifname { "wlan0", "wlan1" } oifname "wg0" accept` nftables
-### rule in /etc/nftables.conf, table inet homelan);
-### 192.168.100.10 is an explicit gateway-override host (DEPLOYMENT.md).
-### Add further eth0-sourced IPs here if more hosts are pointed at
-### raspberrysrv as their gateway.
-
-  - add_fields:
-      when:
-        or:
-          - network:
-              source.ip: ['10.10.10.0/24', '10.1.1.0/24']
-          - network:
-              source.ip: ['192.168.100.10/32']
-      target: 'vpn_hop'
-      fields:
-        source:
-          geo:
-            location: POINT (${localnet_geo_LON} ${localnet_geo_LAT})
-        destination:
-          geo:
-            location: POINT (${vpnet_geo_LON} ${vpnet_geo_LAT})
-
-###
-### PIA DNS Hop (synthetic local -> PIA DNS upstream leg, for a third map layer)
-###
-### Same idea as vpn_hop above, but for local clients' DNS queries that are
-### actually answered via the PIA-routed resolver (see the DNS PIA UPSTREAM
-### block below) rather than AdGuard. Matches when a local-network source is
-### talking to the PIA DNS path specifically (dnsmasq_pia/macvlan-pia
-### 192.168.100.200, or its upstream 10.0.0.243) -- both conditions together
-### identify "a local client's DNS query, routed over PIA" specifically,
-### distinct from ordinary local<->local traffic or non-DNS PIA-tunnel
-### traffic.
-
-  - add_fields:
-      when:
-        and:
-          - network:
-              source.ip: ['10.1.1.0/24', '10.10.10.0/24', '192.168.100.0/24']
-          - network:
-              destination.ip: ['192.168.100.200/32', '10.0.0.243/32']
-      target: 'pia_dns_hop'
-      fields:
-        source:
-          geo:
-            location: POINT (${localnet_geo_LON} ${localnet_geo_LAT})
-        destination:
-          geo:
-            location: POINT (${piavpn_geo_LON} ${piavpn_geo_LAT})
-
-###
-### DNS PIA UPSTREAM
-###
-### dnsmasq_pia (macvlan-pia, 192.168.100.200) forwards queries out through
-### the pia tunnel interface specifically (see /etc/dnsmasq_pia.conf:
-### `server=10.0.0.243@pia`) -- these are the two IPs actually involved in
-### that PIA-routed DNS path. AdGuard (192.168.100.211) is a separate,
-### unrelated local resolver using Quad9, not PIA.
-
-  - add_fields:
-      when:
-        network:
-          destination.ip: ['192.168.100.200/32', '10.0.0.243/32']
-      target: 'destination'
-      fields:
-        geo:
-          location: POINT (${piavpn_geo_LON} ${piavpn_geo_LAT})
-          country_name: '${piavpn_geo_COUNTRY}'
-          country_iso_code: '${piavpn_geo_COUNTRYCODE}'
-          region_iso_code: '${piavpn_geo_REGION}'
-          continent_name: '${piavpn_geo_TIMEZONE}'
-          region_name: '${piavpn_geo_REGIONNAME}'
-          city_name: '${piavpn_geo_CITY}'
-        as:
-          organization:
-            name: '${piavpn_geo_ORG}'
+### These used to be eight client-side add_fields blocks here (three CIDR
+### profiles x source/destination, plus two synthetic map-layer fields),
+### driven by env vars baked into this container at creation time. That
+### meant an IP change (WAN renewed, wg0/pia reassigned) required a full
+### Filebeat *recreate* to pick up new values -- risky, since the registry
+### isn't persisted (see DEPLOYMENT.md). Equivalent enrichment now happens
+### server-side via an Elasticsearch Enrich processor spliced into
+### filebeat-8.17.4-suricata-eve-pipeline (see resources/elasticsearch/ and
+### scripts/setup-geo-enrichment.sh) -- an IP change now only needs
+### scripts/refresh-filebeat-enrichment.sh to update a small ES index and
+### re-execute two enrich policies, never touching Filebeat itself.
 
 output.elasticsearch:
   hosts: ["${ELASTICSEARCH_HOSTS}"]

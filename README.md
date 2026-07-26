@@ -9,7 +9,7 @@
 ### [Suricata](https://github.com/OISF/suricata) | [Elasticsearch](https://github.com/elastic/elasticsearch) | [Kibana](https://github.com/elastic/kibana) | [Filebeat](https://github.com/elastic/beats/tree/main/filebeat) | [AdGuard Home](https://github.com/AdguardTeam/AdGuardHome) | [OTX API](https://otx.alienvault.com/)
 
 - **Suricata**: a Network Intrusion Detection/Prevention System (IDS/IPS) and Network Security Monitoring (NSM) engine -- captures and inspects network traffic, logging alerts as EVE JSON.
-- **Filebeat**: ships and enriches Suricata's EVE logs to Elasticsearch. It also collects and forwards *auditd*, *auth.log*, *syslog*, and [AdGuard Home](https://github.com/AdguardTeam/AdGuardHome)'s DNS query log -- the local DNS server this project actually uses.
+- **Filebeat**: ships Suricata's EVE logs to Elasticsearch, which enriches them server-side (see [Geo-IP Enrichment for Private-Network Traffic](#geo-ip-enrichment-for-private-network-traffic)). It also collects and forwards *auditd*, *auth.log*, *syslog*, and [AdGuard Home](https://github.com/AdguardTeam/AdGuardHome)'s DNS query log -- the local DNS server this project actually uses.
 - **Elasticsearch**: stores and indexes every event Filebeat ships, powering correlation and historical search.
 - **Kibana**: the dashboards, saved visualizations, and Detection Engine (detection rules/alerting) built on top of Elasticsearch -- see [Detection Rules](#detection-rules) and [Screenshots](#screenshots).
 - **AdGuard Home**: the DNS server/ad-blocker actually run in this deployment; its query log is one of Filebeat's inputs and powers the [DNS Queries](#screenshots) dashboard.
@@ -30,6 +30,7 @@
    - [Filebeat Log Collection and Enrichment](#filebeat-log-collection-and-enrichment)
 6. [Ready to start](#ready-to-start) (Device A)
 7. [Device B: Suricata Sensor (e.g. a Raspberry Pi router)](#device-b-suricata-sensor-eg-a-raspberry-pi-router)
+   - [Geo-IP Enrichment for Private-Network Traffic](#geo-ip-enrichment-for-private-network-traffic)
 8. [Traffic Flow Map](#traffic-flow-map)
 9. [OTX Open Threat Exchange (under development)](#otx-open-threat-exchange-under-development)
 10. [Screenshots](#screenshots)
@@ -181,11 +182,24 @@ rule (see [Detection Rules](#detection-rules)) uses the same filter. See
 [Device B: Suricata Sensor](#device-b-suricata-sensor-eg-a-raspberry-pi-router) for how
 those feeds get enabled.
 
+Two further custom IoC rules cover ground the feeds above don't: **domain-based**
+matching (`resources/suricata/local-rules/urlhaus-domains.rules`, abuse.ch URLhaus's
+lightweight plaintext domain list via Suricata's `dataset` feature -- deliberately not
+the full URLhaus ruleset, which is ~30k content-heavy rules and OOM-kills a Raspberry Pi
+4B) and **outbound** IP/CIDR-range matching (`resources/suricata/local-rules/spamhaus-drop-outbound.rules`,
+Spamhaus's DROP list via Suricata's `iprep` feature -- `et/open` already covers this same
+list *inbound*, so this rule specifically closes the outbound direction: a local device
+reaching out to a known-hijacked netblock). Both refreshed daily by
+`scripts/refresh-ioc-datasets.sh`, folded into the existing `suricata-update.service`
+cycle. See `DEPLOYMENT.md`'s 2026-07-26 entry for the exact `dataset`/`iprep` format
+gotchas found along the way (`type string` needs base64-encoded entries; `type ip` does
+not accept CIDR ranges, `iprep` does).
+
 ### Detection Rules
 
-`saved.objects/detection-rules.ndjson` ships 25 curated detection rules, split between
+`saved.objects/detection-rules.ndjson` ships 28 curated detection rules, split between
 14 adapted from [Elastic's free prebuilt rule catalog](https://www.elastic.co/guide/en/security/current/prebuilt-rules.html)
-(`elastic-*` rule IDs) and 11 authored specifically for this project's actual log
+(`elastic-*` rule IDs) and 14 authored specifically for this project's actual log
 sources and observed noise patterns (`siemids-*` rule IDs) -- every rule is mapped to
 its [MITRE ATT&CK](https://attack.mitre.org/) tactic/technique.
 
@@ -195,13 +209,39 @@ its [MITRE ATT&CK](https://attack.mitre.org/) tactic/technique.
 | **Privilege escalation / `sudo` misuse** | `sudo` spawning an interactive shell (`sudo bash`/`su`), `sudo` touching `/etc/passwd`, `/etc/shadow`, `/etc/sudoers`, or account-management commands |
 | **Persistence / account & system changes** | New Linux user/group creation, manual `nftables` firewall changes (excluding netavark's and wg-quick's own automatic table churn), suspicious `rc.local` errors |
 | **Kernel integrity** | Tainted or out-of-tree kernel module loads, executable-stack process starts, suspicious `bpf_probe_write_user` usage |
-| **Command and control** | AdGuard blocked-query spike from one client (beaconing indicator), Cobalt Strike's default team-server TLS certificate, **Suricata IoC feed match** (`siemids-suricata-ioc-feed-match` -- fires specifically on Feodo Tracker/SSLBL indicator hits, high severity, separate from the generic Suricata rule below since a confirmed-bad indicator match deserves different priority than a heuristic signature match) |
-| **Network (Suricata)** | Any real Suricata alert signature (tuned to exclude two known decoder-noise signatures), potential outbound SSH scans (tuned to exclude this project's own admin/automation hosts) |
+| **Command and control** | AdGuard blocked-query spike from one client (beaconing indicator), Cobalt Strike's default team-server TLS certificate, **Suricata IoC feed match** (`siemids-suricata-ioc-feed-match` -- fires specifically on Feodo Tracker/SSLBL indicator hits, high severity, separate from the generic Suricata rule below since a confirmed-bad indicator match deserves different priority than a heuristic signature match), **Suricata known-malicious netblock** (`siemids-suricata-known-malicious-netblock` -- Spamhaus DROP-listed traffic or TOR relay/router traffic, high severity; split out of the generic Suricata rule below so it can't be buried by future noise-tuning there), **URLhaus domain match** (`siemids-suricata-urlhaus-domain-match`) and **Spamhaus outbound match** (`siemids-suricata-spamhaus-outbound-match`) -- the two new `dataset`/`iprep` rules described above |
+| **Network (Suricata)** | Any real Suricata alert signature, excluding entire `alert.category` values that turned out to be pure noise in this deployment (`Generic Protocol Command Decode`, `Device Retrieving External IP Address Detected`, `Misc activity` -- see below) and signatures already owned by a more specific rule; potential outbound SSH scans (excludes this project's own admin/automation hosts *and* GitHub's SSH IP range, `140.82.112.0/20`, since git-over-SSH was the actual source of every remaining false positive) |
 
 Several of the custom rules are tuned against noise this deployment actually generates
 (e.g. the firewall-change rule excludes routine Podman/netavark churn). **These are a
 starting point, not exhaustive**: review them against your own log sources and threat
 model, retune the noise-exclusions, and add rules for your environment.
+
+**False-positive review (2026-07-25)**: `siemids-suricata-real-alerts` was, before this
+review, 98% of all detection alerts (8,400 of 8,590) with almost no filtering beyond two
+signature names. Traced the volume to `suricata.eve.alert.category`, confirmed each
+category's actual source/destination IPs before excluding it, and only then rewrote the
+rule -- not a blind broadening of the exclusion list:
+- `Device Retrieving External IP Address Detected` (ip-api.com etc.) traced to this
+  sensor's own `scripts/interfaces.py` automation (confirmed: source `192.168.100.2`,
+  destination `208.95.112.1`, ip-api.com's own IP) -- expected first-party traffic, not
+  a threat.
+- `Misc activity` (mostly STUN) traced to real household devices' destinations (Google,
+  Meta/WhatsApp, likely Teams) -- WebRTC/VoIP NAT traversal from video calls, not attacks.
+- `Generic Protocol Command Decode` is truncated-packet/TCP-stream-anomaly noise, already
+  effectively excluded before, now excluded more completely (covers all `SURICATA STREAM
+  *` variants too, not just the two originally-named signatures).
+- The SSH-scan rule's remaining false positives (1,361, all of them) traced to
+  destinations `140.82.121.3`/`.4` -- both inside GitHub's `140.82.112.0/20` -- from this
+  project's own admin workstation (including its wg0-tunnel identity, a second address
+  Suricata sees the *same* physical connection under when captured on a second
+  interface) and a separate household device, both doing ordinary `git` operations over
+  SSH.
+
+Net effect, confirmed via `_search` against live data before importing: `real-alerts`
+221 (was 8,400), `ssh-scan-outbound` 0 new false positives (was 1,361 after the existing
+source exclusion alone). The 221 remaining are dominated by Spamhaus DROP/TOR traffic,
+now also promoted to their own dedicated, higher-severity rule as noted above.
 
 Unlike dashboards, rules are **not** auto-imported by any compose service -- the
 Detection Engine's backing indices only initialize once the Security app has been
@@ -249,8 +289,8 @@ the exact generation/storage logic.
 `resources/filebeat/filebeat-skynetpi.yml` is Device A's (the ELK host's) Filebeat
 config, mounted by the `filebeat` service in `podman-compose.yaml`. Since Device A
 isn't the network sensor in this topology, it's deliberately simple: no Suricata
-module, no AdGuard input, no geo-enrichment processors, no `scripts/interfaces.py`
-dependency -- it ships only Device A's own OS logs.
+module, no AdGuard input, no `scripts/interfaces.py` dependency -- it ships only
+Device A's own OS logs.
 
   ```bash
   nano resources/filebeat/filebeat-skynetpi.yml
@@ -278,8 +318,11 @@ Refer to the [official Filebeat documentation](https://www.elastic.co/guide/en/b
 for additional details.
 
 **Device B's Filebeat config is different and covered separately** -- it's the one
-carrying the Suricata module, AdGuard input, and all the geo-enrichment processors
-that power the Traffic Flow Map. See
+carrying the Suricata module and AdGuard input. The geo-enrichment that powers the
+Traffic Flow Map is not a Filebeat processor at all -- it's applied server-side by
+Device A's Elasticsearch, via an Enrich processor spliced into the Suricata module's
+own ingest pipeline (see [Geo-IP Enrichment](#geo-ip-enrichment-for-private-network-traffic)
+below). See
 [Device B: Suricata Sensor](#device-b-suricata-sensor-eg-a-raspberry-pi-router) below.
 
 ## Ready to start
@@ -308,8 +351,11 @@ already exist.
 1. Build a `suricata.yaml` for the sensor host from `resources/suricata/suricata.yaml` (the stock sample) or `resources/suricata/suricata-raspberrysrv.yaml` (a concrete, fully populated multi-interface example), replacing the `af-packet` interface names with the sensor's real interfaces (its AP/LAN and VPN egress interfaces -- not its WAN uplink, unless you want that monitored too), keeping `default-log-dir: /suricata/`.
 2. Enable/start it as a native systemd service (`suricata.service`, shipped by the distro package) -- see [Configure Suricata](#configure-suricata). Then run `scripts/suricata-update-timer-install.sh`, which:
    - Enables `et/open` (Emerging Threats Open, ~40k signatures) plus four free IoC feeds via `suricata-update enable-source`: `abuse.ch/feodotracker` (botnet C2 IPs), `abuse.ch/sslbl-blacklist`/`sslbl-ja3` (malicious TLS certs/JA3 fingerprints), and `etnetera/aggressive` (IP blacklist) -- together only a few hundred to ~10k lightweight rules, small next to `et/open`. **Enabling a source is one-time and additive** -- with zero sources enabled, `suricata-update` does *not* fall back to `et/open`, so skipping this step silently leaves the sensor with no real ruleset.
-   - Pulls the rules immediately, then installs a daily-refresh systemd timer (`resources/suricata/suricata-update.service`/`.timer`, `05:00 UTC` + up to 30min random delay) that **live-reloads Suricata with no capture gap** via its `unix-command` socket.
-3. Run `scripts/interfaces.py` **on the sensor host** first -- it generates the `geoip/*.json` and `env/*.env` files Device B's Filebeat geo-enrichment processors read from. Edit it to set `localnet_1`/`vpnet_1` (and `piavpn_1`, if the sensor has a second VPN egress like a PIA tunnel) to that host's actual interfaces:
+   - Sets up two further custom IoC rules (`resources/suricata/local-rules/`, merged in via `suricata-update --local`) and runs `scripts/refresh-ioc-datasets.sh` to populate the data files they read from: URLhaus's plaintext domain list and Spamhaus's DROP CIDR list. Requires the `reputation-categories-file`/`default-reputation-path`/`reputation-files` block in `suricata.yaml` to be enabled (already set in `resources/suricata/suricata-raspberrysrv.yaml`) for the Spamhaus rule's `iprep` lookup to work.
+   - Pulls the rules immediately, then installs a daily-refresh systemd timer (`resources/suricata/suricata-update.service`/`.timer`, `05:00 UTC` + up to 30min random delay) that **live-reloads Suricata with no capture gap** via its `unix-command` socket, refreshing both the signature feeds and the two IoC data files together.
+3. Edit `scripts/interfaces.py` **on the sensor host** to set `localnet_1`/`vpnet_1`
+   (and `piavpn_1`, if the sensor has a second VPN egress like a PIA tunnel) to that
+   host's actual interfaces:
 
   ```python
   localnet_1 = "eth0" # modify with your local (internet-facing) interface name
@@ -326,30 +372,75 @@ already exist.
    `localnet_1` must be an interface with a **direct route to the internet** (it's used
    for the public-IP geo lookup) -- on a router/AP box, that's the WAN uplink, not an AP
    interface like `wlan0`/`wlan1` (client traffic on those is force-tunneled through the
-   VPN and has no direct egress of its own). The AP subnets' local-IP matching in
-   Filebeat's processors is separate, hardcoded IP-prefix logic and unaffected by this
+   VPN and has no direct egress of its own). The AP subnets' local-IP matching in the
+   Elasticsearch enrich policy is separate, hardcoded CIDR logic and unaffected by this
    variable. *Naming the interfaces themselves is still a one-time manual step; keeping
-   their enrichment current afterward is automated -- see below.*
-
-   **Keeping this current automatically**: these interfaces' IPs can change on their own
-   (WAN IP on DHCP renewal, `wg0`/`pia` tunnel IPs on VPN reconnect/rotation). Filebeat
-   only reads `env/*.env` at container creation -- a plain restart does **not** reload
-   them (see the Gotcha below) -- so stale enrichment would otherwise silently persist.
-   `scripts/refresh-filebeat-enrichment.sh` automates the fix: re-run `interfaces.py`,
-   diff the resulting `env/*.env`, and only recreate the Filebeat container (a brief
-   capture gap) when something actually changed. Installed as a 5-minute systemd timer
-   via `scripts/refresh-filebeat-enrichment-timer-install.sh`.
-4. If the sensor doesn't already run `auditd`/`rsyslog` (e.g. a journald-only distro like Raspberry Pi OS), install and enable both -- `filebeat-<sensor>.yml`'s `auditd`/`system` modules need `/var/log/audit/audit.log`, `/var/log/syslog` and `/var/log/auth.log` to actually exist.
-5. Copy `certs/ca/ca.crt` and `certs/filebeat/{filebeat.crt,filebeat.key}` from the ELK host (generated by its `setup_pki` service after the first `./start.sh` run) onto the sensor host. Set `ELK_LAN_IP` in the ELK host's `.env` to its real LAN IP *before* that first run -- see [Podman Container Security](#podman-container-security) -- otherwise the sensor's Filebeat will fail TLS hostname verification when connecting by IP.
-6. Deploy a `resources/filebeat/filebeat-<sensor>.yml` via a `scripts/filebeat-<sensor>-podman.sh` script (see `resources/filebeat/filebeat-raspberrysrv.yml` / `scripts/filebeat-raspberrysrv-podman.sh` for a concrete example), pointing `ELASTICSEARCH_HOSTS` at the ELK host's LAN address and `ELASTICSEARCH_PASSWORD` at its `elastic_password` secret. Besides the `suricata` module, this instance also ships the sensor's own `auditd`/`system` (syslog+auth) logs and, if present, [AdGuard Home](https://github.com/AdguardTeam/AdGuardHome)'s JSON query log (tagged as its own `adguard.log` dataset).
+   their enrichment current afterward is automated -- see
+   [Geo-IP Enrichment for Private-Network Traffic](#geo-ip-enrichment-for-private-network-traffic)
+   below.*
+4. Run `scripts/setup-geo-enrichment.sh` **on the sensor host**, once, after Device A is
+   up and its certs are copied over (step 5 below) -- it seeds Device A's Elasticsearch
+   with this host's current interface geo data and patches the Suricata module's ingest
+   pipeline to use it. See
+   [Geo-IP Enrichment for Private-Network Traffic](#geo-ip-enrichment-for-private-network-traffic)
+   for what it actually does and why enrichment lives there now instead of in Filebeat.
+5. If the sensor doesn't already run `auditd`/`rsyslog` (e.g. a journald-only distro like Raspberry Pi OS), install and enable both -- `filebeat-<sensor>.yml`'s `auditd`/`system` modules need `/var/log/audit/audit.log`, `/var/log/syslog` and `/var/log/auth.log` to actually exist.
+6. Copy `certs/ca/ca.crt` and `certs/filebeat/{filebeat.crt,filebeat.key}` from the ELK host (generated by its `setup_pki` service after the first `./start.sh` run) onto the sensor host. Set `ELK_LAN_IP` in the ELK host's `.env` to its real LAN IP *before* that first run -- see [Podman Container Security](#podman-container-security) -- otherwise the sensor's Filebeat will fail TLS hostname verification when connecting by IP. `scripts/setup-geo-enrichment.sh` (step 4) and `scripts/filebeat-<sensor>-podman.sh` (step 7) both need these certs to already be in place.
+7. Deploy a `resources/filebeat/filebeat-<sensor>.yml` via a `scripts/filebeat-<sensor>-podman.sh` script (see `resources/filebeat/filebeat-raspberrysrv.yml` / `scripts/filebeat-raspberrysrv-podman.sh` for a concrete example), pointing `ELASTICSEARCH_HOSTS` at the ELK host's LAN address and `ELASTICSEARCH_PASSWORD` at its `elastic_password` secret. Besides the `suricata` module, this instance also ships the sensor's own `auditd`/`system` (syslog+auth) logs and, if present, [AdGuard Home](https://github.com/AdguardTeam/AdGuardHome)'s JSON query log (tagged as its own `adguard.log` dataset).
 
 Device A's own `filebeat` service is covered in
 [Filebeat Log Collection and Enrichment](#filebeat-log-collection-and-enrichment) above
-(`filebeat-skynetpi.yml` -- OS logs only, no Suricata/geo-enrichment). For a
+(`filebeat-skynetpi.yml` -- OS logs only, no Suricata). For a
 memory-constrained Device A (e.g. also a Raspberry Pi 4B), use
 `podman-compose-skynetpi.yaml` instead of `podman-compose.yaml`.
 
-**Gotcha**: env files referenced by Device B's geo-enrichment processors (`${localnet_geo_*}` etc.) must be loaded as real container environment variables, not just bind-mounted as files -- use `podman run --env-file` when deploying Device B's Filebeat. A bind mount alone leaves those variables unresolved and Filebeat refuses to start.
+### Geo-IP Enrichment for Private-Network Traffic
+
+Suricata sees real internal addresses (a client's actual LAN/AP IP, a VPN tunnel's own
+assigned IP) that public GeoIP databases have no data for -- MaxMind's `geoip` database
+only knows about public IP space. Tagging these with *this deployment's own* known
+geography (where the sensor's WAN egress, and its VPN tunnels, actually exit to) is what
+powers the private-network side of the Traffic Flow Map; MaxMind's own `geoip` processor
+(already built into the Suricata module's ingest pipeline) continues to handle real
+public destinations, unaffected by any of this.
+
+This enrichment is **not** a Filebeat processor -- it's an Elasticsearch Enrich
+processor, spliced directly into the Suricata module's own auto-registered ingest
+pipeline (`filebeat-<version>-suricata-eve-pipeline`) on Device A. It used to be a set of
+client-side `add_fields` processors in the sensor's `filebeat-<sensor>.yml`, reading env
+vars that were baked into the Filebeat container at *creation* time -- meaning any IP
+change (WAN renewed, a VPN tunnel reassigned) required a full container **recreate** to
+pick up, which is both disruptive and, since Filebeat's registry isn't persisted here,
+carries a real risk of re-reading and duplicate-ingesting the whole `eve.json` file.
+Moving it server-side removes that requirement entirely -- updating the enrichment data
+is now just two small Elasticsearch API calls, with zero Filebeat downtime.
+
+**How it works**: a small `net-geo-source` index holds one document per matchable
+network -- three CIDRs for the sensor's local/AP subnets, one `/32` for the VPN tunnel's
+own IP, one `/32` for a second (e.g. PIA) tunnel's own IP -- each carrying that network's
+current geo/AS data (from `scripts/interfaces.py`'s same public-IP lookups as before).
+Two Enrich policies read from it: `net-geo-cidr` (a `range` policy, matches
+`source.ip`/`destination.ip` against the stored CIDRs) and `net-geo-profile` (a `match`
+policy, a constant lookup by profile name -- e.g. "give me the VPN tunnel's current exit
+geo", used for the synthetic map-layer fields that need it regardless of a given
+document's real destination). See `resources/elasticsearch/` for the index mapping,
+policy definitions, and the exact patched pipeline. **Known limitation**: don't add a
+`/32` (or any more specific range) that overlaps a broader CIDR already in
+`net-geo-cidr` -- Elasticsearch's `range` enrich policy does not reliably prefer the more
+specific match on overlap. Anything that must overlap needs handling as an explicit
+exact-match step in the pipeline instead, ahead of the general CIDR lookup (see the
+pipeline patch file for a worked example).
+
+**Keeping it current**: these interfaces' IPs can change on their own (WAN IP on DHCP
+renewal, VPN tunnel IPs on reconnect/rotation). `scripts/refresh-filebeat-enrichment.sh`
+(installed as a 5-minute systemd timer via
+`scripts/refresh-filebeat-enrichment-timer-install.sh`) re-runs `interfaces.py`, and only
+if something actually changed, pushes the updated document(s) to `net-geo-source` and
+re-executes both enrich policies -- Filebeat itself is never touched for this. Run
+`scripts/setup-geo-enrichment.sh` once per sensor before relying on the timer (see step 4
+above); it's also safe to re-run later, though changing `net-geo-mapping.json` or
+`enrich-policies.json` afterward requires deleting the affected index/policy first --
+Elasticsearch doesn't support updating either definition in place.
 
 ## Traffic Flow Map
 

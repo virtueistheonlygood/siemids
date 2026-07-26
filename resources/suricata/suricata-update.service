@@ -35,4 +35,11 @@ Type=oneshot
 # suricata-update auto-detects the running instance via its unix-command
 # socket (enabled in suricata.yaml) and triggers a live rule reload itself
 # after a successful test -- no explicit reload step needed here.
-ExecStart=/usr/bin/nice -n 19 /usr/bin/ionice -c3 /usr/bin/suricata-update
+#
+# ExecStartPre refreshes the two custom IoC data files (URLhaus domain list,
+# Spamhaus DROP CIDR list -- see resources/suricata/local-rules/) *before*
+# the compile/reload step, not stopping anything itself -- see
+# scripts/refresh-ioc-datasets.sh. --local points suricata-update at the
+# directory holding the two custom rules that read those files.
+ExecStartPre=/home/skynet/siemids/scripts/refresh-ioc-datasets.sh
+ExecStart=/usr/bin/nice -n 19 /usr/bin/ionice -c3 /usr/bin/suricata-update --local /var/lib/suricata/rules.local

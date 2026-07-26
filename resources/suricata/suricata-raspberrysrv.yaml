@@ -757,7 +757,13 @@ af-packet:
     disable-promisc: no
     checksum-checks: kernel
 
-  # eth0: Pi's uplink to the home router (AdGuard/PIA container traffic)
+  # eth0: Pi's uplink to the home router (AdGuard/PIA container traffic).
+  # ring-size doubled from the default 2048 -- this interface's 2 threads
+  # carry all traffic converging through the WAN uplink, and showed real
+  # kernel_packets drops at 2048 under normal household load (confirmed via
+  # per-thread suricatasc dump-counters stats) while the other 4 interfaces
+  # showed zero drops at the same size. The other interfaces are left at
+  # 2048 since they had no drops to justify the extra memory.
   - interface: eth0
     threads: 2
     cluster-id: 96
@@ -766,7 +772,7 @@ af-packet:
     use-mmap: yes
     mmap-locked: yes
     tpacket-v3: yes
-    ring-size: 2048
+    ring-size: 4096
     block-size: 32768
     block-timeout: 10
     use-emergency-flush: yes
@@ -1457,10 +1463,17 @@ legacy:
 exception-policy: auto
 
 # IP Reputation
-#reputation-categories-file: /etc/suricata/iprep/categories.txt
-#default-reputation-path: /etc/suricata/iprep
-#reputation-files:
-# - reputation.list
+# Backs the "IOC Spamhaus DROP-listed destination (outbound)" custom rule
+# (resources/suricata/local-rules/spamhaus-drop-outbound.rules) -- Suricata's
+# `dataset` feature does NOT support CIDR ranges for `type ip` (confirmed via
+# suricata -T: exact IPs load, a /24 fails "dataset data parse failed"), but
+# iprep's reputation-list format does, which is why this is used instead of
+# dataset for Spamhaus's ~1,670 CIDR-range DROP list. Files refreshed daily by
+# scripts/refresh-ioc-datasets.sh.
+reputation-categories-file: /var/lib/suricata/rules.local/iprep/categories.txt
+default-reputation-path: /var/lib/suricata/rules.local/iprep
+reputation-files:
+  - reputation.list
 
 # When run with the option --engine-analysis, the engine will read each of
 # the parameters below, and print reports for each of the enabled sections
